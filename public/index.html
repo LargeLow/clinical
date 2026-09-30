@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Find and explore clinical studies by condition, treatment, location, and recruitment status.">
+  <title>Clinical — Find a study. Find a possibility.</title>
+  <link rel="stylesheet" href="/style.css"><script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="header"><a class="brand" href="/" aria-label="Clinical home"><span class="brand-icon">+</span> Clinical<span class="brand-dot">.</span></a><a class="source-link" href="https://clinicaltrials.gov/" target="_blank" rel="noopener noreferrer">Explore the source ↗</a></header>
+  <main>
+    <section class="hero"><p class="eyebrow"><span></span> A CLEARER WAY TO EXPLORE CLINICAL TRIALS</p><h1>Find a study.<br>Find a <em>possibility.</em></h1><p class="intro">Clinical research, made easier to navigate. Search studies from ClinicalTrials.gov and explore what matters to you.</p></section>
+    <section class="search-panel" aria-label="Find clinical studies">
+      <form id="search-form">
+        <div class="form-heading"><h2>What are you looking for?</h2><span>Start with one field, or combine a few.</span></div>
+        <div class="fields"><label>Condition or disease<input name="condition" id="condition" maxlength="250" placeholder="e.g. breast cancer"></label><label>Treatment or drug<input name="treatment" maxlength="250" placeholder="e.g. immunotherapy"></label><label>City, state, or country<input name="location" maxlength="250" placeholder="e.g. Salt Lake City"></label><label>Recruitment status<select name="status"><option value="">Any status</option><option value="RECRUITING">Recruiting</option><option value="NOT_YET_RECRUITING">Not yet recruiting</option><option value="ACTIVE_NOT_RECRUITING">Active, not recruiting</option><option value="COMPLETED">Completed</option><option value="ENROLLING_BY_INVITATION">Enrolling by invitation</option><option value="TERMINATED">Terminated</option><option value="WITHDRAWN">Withdrawn</option><option value="SUSPENDED">Suspended</option><option value="UNKNOWN">Unknown</option></select></label></div>
+        <div class="form-bottom"><p>Public study data. No account needed.</p><button type="submit" id="search-button">Search studies <span aria-hidden="true">→</span></button></div>
+      </form>
+    </section>
+    <section class="results-section" aria-labelledby="results-heading"><div class="results-heading"><h2 id="results-heading">Your search starts here</h2><p id="result-count"></p></div><p id="message" role="status" aria-live="polite"></p><div id="results"><div class="empty-state"><div class="empty-icon" aria-hidden="true">⌕</div><h3>A little direction goes a long way.</h3><p>Enter a condition, treatment, or location above.<br>We’ll help you explore the studies that match.</p><div class="examples"><span>Try a search:</span><button type="button" data-condition="diabetes">Diabetes ↗</button><button type="button" data-condition="breast cancer">Breast cancer ↗</button><button type="button" data-condition="Alzheimer disease">Alzheimer’s disease ↗</button></div></div></div><button id="load-more" class="secondary" hidden>Load more studies ↓</button></section>
+  </main>
+  <footer><span>Clinical<span class="brand-dot">.</span> <small>Clarity for your next step.</small></span><p>Data provided by ClinicalTrials.gov. An independent search interface.<br>Search results do not confirm eligibility. Contact the study team to learn more.</p></footer>
+  <dialog id="study-dialog"><div class="dialog-top"><span class="eyebrow">STUDY DETAILS</span><button id="close-dialog" class="secondary" aria-label="Close study details">Close ×</button></div><div id="study-content"></div></dialog>
+</body>
+</html>
