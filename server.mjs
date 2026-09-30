@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { createAssistant } from './assistant.mjs';
 
 const apiBase = 'https://clinicaltrials.gov/api/v2';
 const statuses = new Set(['RECRUITING', 'NOT_YET_RECRUITING', 'ACTIVE_NOT_RECRUITING', 'COMPLETED', 'ENROLLING_BY_INVITATION', 'TERMINATED', 'WITHDRAWN', 'SUSPENDED', 'UNKNOWN']);
@@ -9,7 +10,7 @@ const cache = new Map();
 
 export function searchParameters(input) {
   const params = new URLSearchParams({format:'json', pageSize:'20', countTotal:'true', sort:'@relevance'});
-  for (const [key, target] of [['condition','query.cond'], ['treatment','query.intr'], ['location','query.locn']]) {
+  for (const [key, target] of [['condition','query.cond'], ['treatment','query.intr'], ['location','query.locn'], ['sponsor','query.spons']]) {
     const value = (input.get(key) || '').trim();
     if (value.length > 250) throw new Error('Search terms must be 250 characters or fewer.');
     if (value) params.set(target, value);
@@ -19,14 +20,20 @@ export function searchParameters(input) {
     if (!statuses.has(status)) throw new Error('Choose a valid recruitment status.');
     params.set('filter.overallStatus', status);
   }
-  if (!['query.cond','query.intr','query.locn','filter.overallStatus'].some(key => params.has(key))) throw new Error('Enter a condition, treatment, location, or recruitment status.');
+  const filters=[];
+  const phase=input.get('phase');
+  if(phase) {if(!['EARLY_PHASE1','PHASE1','PHASE2','PHASE3','PHASE4','NA'].includes(phase)) throw new Error('Choose a valid study phase.');filters.push('AREA[Phase]'+phase);}
+  const type=input.get('studyType');
+  if(type) {if(!['INTERVENTIONAL','OBSERVATIONAL'].includes(type)) throw new Error('Choose a valid study type.');filters.push('AREA[StudyType]'+type);}
+  if(filters.length) params.set('filter.advanced',filters.join(' AND '));
+  if (!['query.cond','query.intr','query.locn','query.spons','filter.overallStatus','filter.advanced'].some(key => params.has(key))) throw new Error('Enter a condition, sponsor, treatment, location, or study filter.');
   const token = input.get('pageToken');
   if (token) {
     if (token.length > 10000) throw new Error('Invalid page token.');
     params.set('pageToken',token);
     params.delete('countTotal');
   }
-  params.set('fields', 'NCTId,BriefTitle,OverallStatus,BriefSummary,Condition,Phase,LocationFacility,LocationCity,LocationState,LocationCountry,LastUpdatePostDate');
+  params.set('fields', 'NCTId,BriefTitle,OverallStatus,BriefSummary,Condition,Phase,StudyType,LeadSponsorName,LeadSponsorClass,InterventionName,EnrollmentCount,StartDate,LocationFacility,LocationCity,LocationState,LocationCountry,LastUpdatePostDate');
   return params;
 }
 
@@ -45,15 +52,17 @@ async function upstream(path, fetcher) {
   return value;
 }
 
-export function createServer(fetcher = fetch) {
+export function createServer(fetcher = fetch, env = process.env) {
+  const assistant=createAssistant({fetcher,env,search:async input=>upstream('/studies?'+searchParameters(input),fetcher)});
   return http.createServer(async (req,res) => {
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('Referrer-Policy','no-referrer');
     res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
     const json = (status, value) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
-    if (req.method !== 'GET') return json(405,{error:'Method not allowed.'});
     try {
       const url = new URL(req.url,'http://localhost');
+      if(await assistant(req,res,url,json)) return;
+      if (req.method !== 'GET') return json(405,{error:'Method not allowed.'});
       if (url.pathname === '/health') return json(200,{status:'ok'});
       if (url.pathname === '/api/studies') {
         let params;
