@@ -104,6 +104,10 @@ async function showStudy(id) {
     const link = element('a','View original record ↗','source-button');link.href = 'https://clinicaltrials.gov/study/'+id;link.target = '_blank';link.rel = 'noopener noreferrer';details.append(link);
   } catch (error) {if (requestId === detailRequest && dialog.open) details.replaceChildren(element('p',error.message));}
 }
+function updateFilterLabels(){for(const key of ['status','phase']){const boxes=[...form.querySelectorAll('input[name="'+key+'"]')];const selected=boxes.filter(b=>b.checked);document.querySelector('#'+key+'-summary').textContent=selected.length?selected.map(b=>b.parentElement.textContent.trim()).join(', '):'Any '+key;}}
+form.addEventListener('change',updateFilterLabels);
+form.addEventListener('reset',()=>queueMicrotask(updateFilterLabels));
+document.querySelectorAll('[data-clear-filter]').forEach(button=>button.addEventListener('click',()=>{form.querySelectorAll('input[name="'+button.dataset.clearFilter+'"]').forEach(b=>b.checked=false);updateFilterLabels();}));
 form.addEventListener('submit',event=>{event.preventDefault();search();});
 more.addEventListener('click',()=>search(true));
 document.querySelector('#close-dialog').addEventListener('click',()=>dialog.close());
@@ -145,10 +149,28 @@ renderShortlist();
 profileForm.addEventListener('submit',event=>{event.preventDefault();profile=Object.fromEntries(profileKeys.map(k=>[k,profileForm.elements[k].value.trim()]));syncProfile();persist();workspaceNote(remember.checked ? 'Preferences saved on this browser.' : 'Preferences saved for this visit.');});
 remember.addEventListener('change',()=>{persist();workspaceNote(remember.checked ? 'Current preferences and shortlist will be remembered on this browser.' : 'Saved browser data removed; current work remains available for this visit.');});
 document.querySelector('#clear-workspace').addEventListener('click',()=>{profile=emptyProfile();shortlisted.clear();remember.checked=false;chatHistory=[];proposedProfile=null;document.querySelector('#profile-suggestion').hidden=true;chatLog.replaceChildren();greeting();syncProfile();renderShortlist();persist();workspaceNote('Preferences, shortlist, and conversation cleared.');});
-function bubble(role,text){const b=element('div',undefined,'chat-bubble'+(role==='user'?' user':''));b.append(element('strong',role==='user'?'You':'Research assistant'),element('span',text));chatLog.append(b);chatLog.scrollTop=chatLog.scrollHeight;}
+function bubble(role,text){const b=element('div',undefined,'chat-bubble'+(role==='user'?' user':''));b.append(element('strong',role==='user'?'You':'Research assistant'),element('span',text));chatLog.append(b);chatLog.scrollTop=chatLog.scrollHeight;return b;}
 function greeting(){bubble('assistant','Hi Nikki. I can help with study opportunities, sponsor/CRO relationships, and PI visibility. Joe confirmed you cover business development nationwide for Nira. Which clinics or priorities would you like to focus on today? You can also skip this and tell me what you want to work on today.');}
 greeting();
-async function assistantRequest(path,value){const r=await fetch('/api/assistant/'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Clinical-Request':'1'},body:JSON.stringify(value),signal:AbortSignal.timeout(150000)});const data=await r.json();if(!r.ok){if(r.status===401){aiUnlocked=false;updateAi();}throw new Error(data.error || 'The assistant could not respond.');}return data;}
+async function assistantRequest(path,value,onEvent){
+  const r=await fetch('/api/assistant/'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Clinical-Request':'1',...(onEvent?{Accept:'application/x-ndjson'}:{})},body:JSON.stringify(value),signal:AbortSignal.timeout(85000)});
+  if(r.headers.get('Content-Type')?.includes('application/x-ndjson')){
+    const reader=r.body.getReader(),decoder=new TextDecoder();let buffer='',result;
+    const consume=line=>{if(!line.trim())return;const event=JSON.parse(line);if(event.type==='error')throw Error(event.error||'The assistant could not respond.');if(event.type==='result')result=event;else onEvent?.(event);};
+    while(true){const {value:chunk,done}=await reader.read();buffer+=decoder.decode(chunk||new Uint8Array(),{stream:!done});let split;while((split=buffer.indexOf('\n'))>=0){const line=buffer.slice(0,split);buffer=buffer.slice(split+1);consume(line);}if(done)break;}
+    consume(buffer);if(!result)throw Error('The connection ended before the reply finished. Please retry.');return result;
+  }
+  const data=await r.json();if(!r.ok){if(r.status===401){aiUnlocked=false;updateAi();document.dispatchEvent(new Event('clinical-locked'));}throw Error(data.error || 'The assistant could not respond.');}return data;
+}
+function applyAssistantStudies(data){
+  if(!data.data)return;
+  if(searching){workspaceNote('A manual search is running; finish it before showing another search.');return;}
+  for(const [key,value] of Object.entries(data.query||{})){
+    if(['status','phase'].includes(key)){const values=String(value).split(',');form.querySelectorAll('input[name="'+key+'"]').forEach(b=>b.checked=values.includes(b.value));}
+    else if(form.elements[key])form.elements[key].value=value;
+  }
+  updateFilterLabels();parameters=new URLSearchParams(data.query);currentStudies=data.data.studies||[];loaded=currentStudies.length;total=data.data.totalCount;nextToken=data.data.nextPageToken;results.replaceChildren(...currentStudies.map(card));results.className='cards';heading.textContent='Studies from your conversation';count.textContent='Showing '+loaded+(typeof total==='number'?' of '+total.toLocaleString()+' studies':' studies');more.hidden=!nextToken;note(loaded?'':'No studies returned. Try broader terms.');
+}
 function updateAi(){document.querySelector('#ai-status').textContent=!aiReady?'AI account setup pending':aiUnlocked?'Assistant ready':'Assistant locked';document.querySelector('#unlock-form').hidden=!aiReady || aiUnlocked;document.querySelector('#lock-ai').hidden=!aiUnlocked;chatSend.disabled=!aiReady || !aiUnlocked || chatBusy;document.querySelectorAll('[data-prompt]').forEach(b=>b.disabled=chatBusy);}
 request('/api/assistant/status').then(data=>{aiReady=data.configured;aiUnlocked=data.authenticated;updateAi();}).catch(()=>{document.querySelector('#ai-status').textContent='Assistant unavailable';});
 document.querySelector('#unlock-form').addEventListener('submit',async event=>{event.preventDefault();const input=event.currentTarget.elements.password;try{await assistantRequest('login',{password:input.value});input.value='';aiUnlocked=true;updateAi();document.dispatchEvent(new Event('clinical-unlocked'));document.querySelector('#chat-notice').textContent='Assistant unlocked for this browser session.';}catch(error){document.querySelector('#chat-notice').textContent=error.message;}});
@@ -156,15 +178,15 @@ document.querySelector('#lock-ai').addEventListener('click',async()=>{try{await 
 async function sendChat(text){
   if(chatBusy)return;
   if(!aiReady || !aiUnlocked){document.querySelector('#chat-notice').textContent=!aiReady?'The AI account is awaiting setup. Manual search, preferences and exports work now.':'Enter your assistant access password above.';chatInput.value=text;return;}
-  chatBusy=true;updateAi();bubble('user',text);document.querySelector('#chat-notice').textContent='Thinking…';
+  chatBusy=true;chatInput.value=text;updateAi();bubble('user',text);const pending=bubble('assistant','Working on your question…');pending.classList.add('pending');const status=pending.querySelector('span');const started=Date.now();let phase='Working on your question…';const timer=setInterval(()=>{status.textContent=phase+' ('+Math.floor((Date.now()-started)/1000)+'s)';},1000);document.querySelector('#chat-notice').textContent='';
   try{
-    const data=await assistantRequest('chat',{message:text,history:chatHistory.slice(-10),profile,onboarding:onboardingContext});
-    chatHistory.push({role:'user',content:text},{role:'assistant',content:data.reply.slice(0,3000)});chatHistory=chatHistory.slice(-10);bubble('assistant',data.reply);chatInput.value='';
+    const data=await assistantRequest('chat',{message:text,history:chatHistory.slice(-10),profile,onboarding:onboardingContext},event=>{if(event.type==='progress'){phase=event.message;status.textContent=phase;}if(event.type==='studies')applyAssistantStudies(event);});
+    chatHistory.push({role:'user',content:text},{role:'assistant',content:data.reply.slice(0,3000)});chatHistory=chatHistory.slice(-10);status.textContent=data.reply;pending.classList.remove('pending');chatInput.value='';
     if(data.profile && profileKeys.some(k=>(data.profile[k] || '')!==(profile[k] || ''))){proposedProfile=data.profile;document.querySelector('#proposed-profile').textContent=profileKeys.filter(k=>(data.profile[k] || '')!==(profile[k] || '')).map(k=>profileLabels[k]+': '+(data.profile[k] || 'Not specified')).join('\n');document.querySelector('#profile-suggestion').hidden=false;}
-    if(data.data){if(!searching){for(const [key,value] of Object.entries(data.query || {}))if(form.elements[key])form.elements[key].value=value;parameters=new URLSearchParams(data.query);currentStudies=data.data.studies || [];loaded=currentStudies.length;total=data.data.totalCount;nextToken=data.data.nextPageToken;results.replaceChildren(...currentStudies.map(card));results.className='cards';heading.textContent='Studies from your conversation';count.textContent='Showing '+loaded+(typeof total==='number'?' of '+total.toLocaleString()+' studies':' studies');more.hidden=!nextToken;note(loaded?'':'No studies returned. Try broader terms.');}else workspaceNote('A manual search was running; ask again to show the AI search results.');}
+    applyAssistantStudies(data);
     document.querySelector('#chat-notice').textContent='';
-  }catch(error){document.querySelector('#chat-notice').textContent=error.name==='TimeoutError'?'The assistant took too long. Your message is still here to retry.':error.message;}
-  finally{chatBusy=false;updateAi();}
+  }catch(error){const message=error.name==='TimeoutError'?'The assistant took too long. Your message is still here to retry.':error.message;status.textContent=message;pending.classList.remove('pending');document.querySelector('#chat-notice').textContent=message;}
+  finally{clearInterval(timer);chatBusy=false;updateAi();}
 }
 document.querySelector('#chat-form').addEventListener('submit',e=>{e.preventDefault();sendChat(chatInput.value.trim());});
 document.querySelectorAll('[data-prompt]').forEach(b=>b.addEventListener('click',()=>sendChat(b.dataset.prompt)));
