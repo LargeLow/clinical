@@ -38,7 +38,7 @@ export function createWorkspace({env=process.env,fetcher=fetch,authenticated}={}
     if(notifying.has(id))return 'pending';notifying.add(id);
     try{const data=await store.read();const s=data.suggestions.find(x=>x.id===id);if(!s || s.notification==='sent')return s?.notification;
       if(!mailReady())return 'pending';
-      let status='failed';try{const r=await fetcher('https://api.resend.com/emails',{method:'POST',signal:AbortSignal.timeout(15000),headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json','Idempotency-Key':'clinical-feedback-'+id},body:JSON.stringify({from:env.FEEDBACK_FROM,to:['joe@uptechprojects.com'],subject:'Clinical suggestion '+id.slice(0,8)+' — '+s.priority,text:'Nikki sent a suggestion.\n\n'+s.message+'\n\nPriority: '+s.priority+'\nSubmitted: '+s.createdAt+'\n'+(s.context?'\nContext Nikki chose to share:\n'+s.context+'\n':'')+'\nReview: https://nikki.uptechprojects.com/#owner-inbox'})});if(r.ok)status='sent';}catch{}
+      let status='failed';try{const r=await fetcher('https://api.resend.com/emails',{method:'POST',signal:AbortSignal.timeout(15000),headers:{Authorization:'Bearer '+env.RESEND_API_KEY,'Content-Type':'application/json','Idempotency-Key':'clinical-feedback-'+id},body:JSON.stringify({from:env.FEEDBACK_FROM,to:['joe@uptechprojects.com'],subject:'Clinical suggestion '+id.slice(0,8)+' — '+s.priority,text:'Nikki sent a suggestion.\n\n'+s.message+'\n\nPriority: '+s.priority+'\nSubmitted: '+s.createdAt+'\n'+(s.context?'\nContext Nikki chose to share:\n'+s.context+'\n':'')})});if(r.ok)status='sent';}catch{}
       await store.update(d=>{d.suggestions.find(x=>x.id===id).notification=status;});return status;
     }finally{notifying.delete(id);}
   }
