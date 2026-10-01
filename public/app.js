@@ -27,6 +27,28 @@ async function request(url) {
   return data;
 }
 function note(text,error=false) {message.textContent = text;message.className = error ? 'error' : '';}
+function studyContacts(study){
+  const module=study.protocolSection?.contactsLocationsModule||{};
+  return [...(module.centralContacts||[]).map(c=>({...c,kind:'Central study contact',facility:''})),...(module.locations||[]).flatMap(l=>(l.contacts||[]).map(c=>({...c,kind:'Site contact',facility:[l.facility,l.city,l.state,l.country].filter(Boolean).join(', ')})))];
+}
+function contactsPanel(study){
+  const contacts=studyContacts(study),panel=element('details',undefined,'study-contacts');
+  panel.append(element('summary',contacts.length?'Published contacts ('+contacts.length+')':'No published contacts in this record'));
+  panel.append(element('p','These are trial or site contacts; sponsor/CRO business development responsibility is unconfirmed.','workspace-note'));
+  if(!contacts.length){panel.append(element('p','Contact details may be absent or removed for older studies. Use the sponsor and original study record to identify the right outreach route.','workspace-note'));return panel;}
+  const id=study.protocolSection?.identificationModule?.nctId;
+  for(const c of contacts.slice(0,40)){
+    const row=element('div',undefined,'contact-row');row.append(element('strong',c.name||'Name not reported'),element('small',[c.kind,c.role,c.facility].filter(Boolean).join(' · ')));
+    if(c.email){const email=String(c.email).trim();if(/^[^\s@?&]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(email)){
+      const link=element('a',email);link.href='mailto:'+encodeURIComponent(email);row.append(link);
+      const draft=element('a','Draft outreach email','secondary');draft.href=link.href+'?subject='+encodeURIComponent('Nira Medical — study site inquiry: '+id)+'&body='+encodeURIComponent('Hello '+(c.name||'study team')+',\n\nI work in clinical research business development at Nira Medical. I am reaching out about '+id+' to explore potential site opportunities or future collaboration. Could you direct me to the person responsible for site selection or feasibility?\n\nThank you,\nNikki\nNira Medical');row.append(draft);
+    }else row.append(element('span',email));}
+    if(c.phone)row.append(element('span','Phone: '+c.phone+(c.phoneExt?' ext. '+c.phoneExt:'')));
+    panel.append(row);
+  }
+  if(contacts.length>40)panel.append(element('p','Showing the first 40 contacts. Open the original study record for the complete list.'));
+  return panel;
+}
 function card(study) {
   const p = study.protocolSection || {};
   const id = p.identificationModule?.nctId;
@@ -38,6 +60,7 @@ function card(study) {
   node.append(meta,element('h3',p.identificationModule?.briefTitle || 'Untitled study'),element('p',summary.length > 230 ? summary.slice(0,230)+'…' : summary,'summary'));
   node.append(element('p',(p.conditionsModule?.conditions || []).slice(0,3).join(' · ') || 'Condition not reported','card-info'));
   const phases = p.designModule?.phases;
+  node.append(contactsPanel(study));
   node.append(element('p','Sponsor: '+(p.sponsorCollaboratorsModule?.leadSponsor?.name || 'Not reported'),'card-info'));
   if (phases?.length) node.append(element('p',phases.map(friendly).join(' / '),'card-info'));
   const locations = p.contactsLocationsModule?.locations || [];
@@ -90,7 +113,7 @@ async function showStudy(id) {
     const eligibility = p.eligibilityModule || {};
     section('Age and sex criteria',[eligibility.minimumAge ? 'Minimum age: '+eligibility.minimumAge : '',eligibility.maximumAge ? 'Maximum age: '+eligibility.maximumAge : '',eligibility.sex ? 'Sex: '+friendly(eligibility.sex) : ''].filter(Boolean).join('\n'));
     const contacts = p.contactsLocationsModule?.centralContacts || [];
-    section('Study contacts',contacts.map(c=>[c.name,c.role,c.phone,c.email].filter(Boolean).join(' · ')).join('\n'));
+    details.append(element('h3','Study contacts'),contactsPanel(study));
     const locations = p.contactsLocationsModule?.locations || [];
     details.append(element('h3','Study locations'));
     if (!locations.length) details.append(element('p','No locations reported.'));
@@ -196,7 +219,7 @@ document.querySelector('#dismiss-profile').addEventListener('click',()=>{propose
 function selectedStudies(){return shortlisted.size ? [...shortlisted.values()] : currentStudies;}
 function brief(provider='Research assistant'){
   const studies=selectedStudies();
-  return 'Clinical research business development handoff for '+provider+'\nPrepared '+new Date().toISOString()+'\n\nNikki works for Nira Medical. Goals: study opportunities, additional trial sites, sponsor/CRO relationships and PI platform visibility. Corporate workspace is not connected.\n\nCONFIRMED PREFERENCES\n'+profileKeys.map(k=>profileLabels[k]+': '+(profile[k] || 'Unknown—ask Nikki')).join('\n')+'\n\nSTUDIES ('+(shortlisted.size?'shortlist':'current results')+')\n'+studies.map(s=>{const p=s.protocolSection;const id=p.identificationModule.nctId;return [id+' — '+p.identificationModule.briefTitle,'Sponsor: '+(p.sponsorCollaboratorsModule?.leadSponsor?.name || 'Not reported'),'Status: '+friendly(p.statusModule?.overallStatus),'Phase: '+(p.designModule?.phases || []).map(friendly).join(' / '),'Updated: '+(p.statusModule?.lastUpdatePostDateStruct?.date || 'Not reported'),'Source: https://clinicaltrials.gov/study/'+id].join('\n');}).join('\n\n')+'\n\nREQUEST\n'+(document.querySelector('#handoff-question').value.trim() || 'Assess these studies for potential clinic fit. Identify missing feasibility information and useful next steps. Ask relevant clarifying questions.')+'\n\nUse the linked records as evidence. Distinguish facts, inference and unknowns. Recruiting patients does not confirm a sponsor is accepting additional sites. Do not invent investigator credentials, clinic capacity or submission confirmations.\n';
+  return 'Clinical research business development handoff for '+provider+'\nPrepared '+new Date().toISOString()+'\n\nNikki works for Nira Medical. Goals: study opportunities, additional trial sites, sponsor/CRO relationships and PI platform visibility. Corporate workspace is not connected.\n\nCONFIRMED PREFERENCES\n'+profileKeys.map(k=>profileLabels[k]+': '+(profile[k] || 'Unknown—ask Nikki')).join('\n')+'\n\nSTUDIES ('+(shortlisted.size?'shortlist':'current results')+')\n'+studies.map(s=>{const p=s.protocolSection;const id=p.identificationModule.nctId;return [id+' — '+p.identificationModule.briefTitle,'Sponsor: '+(p.sponsorCollaboratorsModule?.leadSponsor?.name || 'Not reported'),'Status: '+friendly(p.statusModule?.overallStatus),'Phase: '+(p.designModule?.phases || []).map(friendly).join(' / '),'Updated: '+(p.statusModule?.lastUpdatePostDateStruct?.date || 'Not reported'),'Published contacts: '+(studyContacts(s).map(c=>[c.kind,c.name,c.role,c.email,c.phone,c.facility].filter(Boolean).join(' · ')).join('; ')||'Not reported'),'Source: https://clinicaltrials.gov/study/'+id].join('\n');}).join('\n\n')+'\n\nREQUEST\n'+(document.querySelector('#handoff-question').value.trim() || 'Assess these studies for potential clinic fit. Identify missing feasibility information and useful next steps. Ask relevant clarifying questions.')+'\n\nUse the linked records as evidence. Distinguish facts, inference and unknowns. Recruiting patients does not confirm a sponsor is accepting additional sites. Do not invent investigator credentials, clinic capacity or submission confirmations.\n';
 }
 function download(name,text,type='text/plain'){const url=URL.createObjectURL(new Blob([text],{type}));const link=element('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 async function copyBrief(provider){try{await navigator.clipboard.writeText(brief(provider));workspaceNote('Handoff copied. Paste it into '+provider+' when ready.');}catch{download('clinical-handoff-'+provider.toLowerCase()+'.txt',brief(provider));workspaceNote('Clipboard unavailable; downloaded the handoff instead.');}}
@@ -204,5 +227,5 @@ document.querySelector('#copy-grok').addEventListener('click',()=>copyBrief('Gro
 document.querySelector('#copy-claude').addEventListener('click',()=>copyBrief('Claude'));
 document.querySelector('#download-brief').addEventListener('click',()=>{download('clinical-research-brief.txt',brief());workspaceNote('Brief downloaded. You can upload it to SharePoint yourself.');});
 function csvCell(value){let text=String(value ?? '');if(/^[\s]*[=+\-@]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"';}
-document.querySelector('#export-studies').addEventListener('click',()=>{const studies=selectedStudies();if(!studies.length)return workspaceNote('Search or shortlist studies before exporting.');const rows=[['NCT ID','Study','Sponsor','Status','Phase','Study type','Conditions','Last updated','Source']];for(const s of studies){const p=s.protocolSection;const id=p.identificationModule.nctId;rows.push([id,p.identificationModule.briefTitle,p.sponsorCollaboratorsModule?.leadSponsor?.name,friendly(p.statusModule?.overallStatus),(p.designModule?.phases || []).map(friendly).join(' / '),friendly(p.designModule?.studyType),(p.conditionsModule?.conditions || []).join('; '),p.statusModule?.lastUpdatePostDateStruct?.date,'https://clinicaltrials.gov/study/'+id]);}download('clinical-studies.csv','\uFEFF'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8');workspaceNote('Exported '+studies.length+' studies for Excel.');});
+document.querySelector('#export-studies').addEventListener('click',()=>{const studies=selectedStudies();if(!studies.length)return workspaceNote('Search or shortlist studies before exporting.');const rows=[['NCT ID','Study','Sponsor','Status','Phase','Study type','Conditions','Contact names and roles','Contact emails','Contact phones','Contact facilities','Last updated','Source']];for(const s of studies){const p=s.protocolSection;const id=p.identificationModule.nctId;rows.push([id,p.identificationModule.briefTitle,p.sponsorCollaboratorsModule?.leadSponsor?.name,friendly(p.statusModule?.overallStatus),(p.designModule?.phases || []).map(friendly).join(' / '),friendly(p.designModule?.studyType),(p.conditionsModule?.conditions || []).join('; '),studyContacts(s).map(c=>[c.kind,c.name,c.role].filter(Boolean).join(' · ')).join('; '),studyContacts(s).map(c=>c.email).filter(Boolean).join('; '),studyContacts(s).filter(c=>c.phone).map(c=>c.phone+(c.phoneExt?' ext. '+c.phoneExt:'')).join('; '),studyContacts(s).map(c=>c.facility).filter(Boolean).join('; '),p.statusModule?.lastUpdatePostDateStruct?.date,'https://clinicaltrials.gov/study/'+id]);}download('clinical-studies.csv','\uFEFF'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8');workspaceNote('Exported '+studies.length+' studies for Excel.');});
 document.querySelector('#review-findings').addEventListener('click',()=>{const text=document.querySelector('#external-findings').value.trim();if(!text)return workspaceNote('Paste findings first.');sendChat(('Review these external assistant findings. Treat them as unverified; identify claims needing source checks. You can search ClinicalTrials.gov, but do not claim web verification.\n\n'+text).slice(0,3000));});
