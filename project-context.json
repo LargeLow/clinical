@@ -1,0 +1,39 @@
+{
+  "name": "Clinical",
+  "website": "https://nikki.uptechprojects.com",
+  "repository": "https://github.com/LargeLow/clinical",
+  "branch": "main",
+  "renderServiceId": "srv-daulttg473hc73bohfk0",
+  "renderWorkspaceId": "tea-d7sdga67r5hc739c49jg",
+  "purpose": "Nationwide clinical research business development for Nikki at Nira Medical: study discovery, published contacts, sponsor/CRO relationships, PI visibility and outreach drafts.",
+  "preferences": [
+    "ARFD = Analyze, Research, Report for Discussion. Discuss ARFD proposals before implementation.",
+    "No corporate workspace integration. Provide Excel exports and manual Grok/Claude handoffs.",
+    "Feedback emails go to joe@uptechprojects.com; no owner inbox in UI.",
+    "Onboarding remains optional, collapsible and below results.",
+    "Keep chat and results together; show registry source and published contact links on cards."
+  ],
+  "implemented": [
+    "Multiple status and phase filters",
+    "Streamed chat progress and visible errors",
+    "Desktop assistant sidebar and mobile Studies/Assistant views",
+    "Selected study fetched server-side for assistant evidence",
+    "Primary contacts, mailto/tel links and user-reviewed outreach drafts",
+    "Direct ClinicalTrials.gov links without shortlisting",
+    "Shortlist dialog and Excel export",
+    "Shared onboarding storage and Resend feedback"
+  ],
+  "infrastructure": {
+    "runtime": "Node",
+    "region": "Oregon",
+    "servicePlan": "$7/month",
+    "disk": "1 GB persistent disk mounted at /var/data",
+    "session": "12-hour signed HttpOnly cookie; deployment or restart invalidates access"
+  },
+  "credentialHandling": "Runtime secrets remain in existing secure configuration; none copied to this project folder.",
+  "sourceWorkspace": "/Users/applelab/Documents/ChatGPT/Clinical",
+  "appProjectStatus": "Clinical is registered in the app at this canonical folder. GitHub origin and full main history have been fetched. Website files exactly match the latest deployed commit.",
+  "canonicalProjectFolder": "/Users/applelab/Documents/ChatGPT/Clinical",
+  "backupFolder": "/Users/applelab/Documents/Codex/Clinical",
+  "latestDeployedCommit": "3466dd04fad3b20d72d15b2266afcf1a8a2b54a8"
+}

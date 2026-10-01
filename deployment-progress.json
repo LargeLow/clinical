@@ -1,0 +1,104 @@
+{
+  "project": "Clinical",
+  "website": "https://nikki.uptechprojects.com",
+  "github": "https://github.com/LargeLow/clinical",
+  "render_service_id": "srv-daulttg473hc73bohfk0",
+  "local_app": "/Users/applelab/Documents/Codex/2026-09-30/i-c/work/clinical",
+  "openai_project": "Clinical",
+  "openai_key_name": "Codex",
+  "openai_key_location": ".env.local in local app; do not print contents",
+  "api_test": "Credits active; Responses API gpt-5-mini returned HTTP 200 and OK",
+  "pending": [],
+  "browser_issue": "In-app browser payment and Google login stalled; switching to Chrome. Computer Use screenshots permission requires app restart; Chrome extension sidebar setup pending.",
+  "render_configuration": "OPENAI_API_KEY and CLINICAL_ACCESS_PASSWORD saved; values omitted",
+  "latest_commit": "ce04794c84a5767ee956972e6ac95ca12b434933",
+  "latest_deploy": "dep-dauo5voae00c73f3b37g; live",
+  "verification": "Live browser chat returned 112 recruiting US interventional MS studies, 20 displayed. Reply cleanup retested through real OpenAI and registry calls: HTTP 200, three examples, two follow-up questions, no Search=null. Five automated tests pass and build passes.",
+  "onboarding_feedback": {
+    "commit": "5fa9fe88b12f528d7fa76dd7b67b64f54ae95330",
+    "disk": {
+      "path": "/var/data",
+      "sizeGB": 1,
+      "monthlyCostUSD": 0.25,
+      "attached": true
+    },
+    "testsPassed": 8,
+    "senderVerified": "joe@uptechprojects.com",
+    "pending": [],
+    "configurationComplete": true,
+    "notificationDelivered": true,
+    "liveSubmissionVerified": true,
+    "testSuggestionId": "2b232dc2",
+    "userConfirmedBothTestEmailsReceived": true
+  },
+  "latest_ui_update": {
+    "commit": "7ded80caa91e63e489f53755c69eb50c1f664df0",
+    "deploy": "dep-dauqm4vd7sfs738n3g3g",
+    "live": true,
+    "ownerInboxRemoved": true,
+    "nationwideCoverageConfirmed": true,
+    "onboardingAtBottom": true,
+    "completedOnboardingCollapses": true,
+    "testsPassed": 8
+  },
+  "chat_and_filters": {
+    "commit": "404346993aaa5ba61ae2b737e7794684076f52a1",
+    "deploy": "dep-daurvjnlklac73eu4c9g",
+    "live": true,
+    "model": "gpt-4.1-mini",
+    "testsPassed": 10,
+    "multiStatusAndPhase": true,
+    "streamedProgress": true,
+    "summaryFailureKeepsResults": true,
+    "realApiTests": {
+      "conversationSeconds": 1.863,
+      "multiFilterSearchSeconds": 4.759
+    },
+    "pending": [],
+    "liveChatVerified": true,
+    "liveConversationSeconds": 1.173,
+    "liveMultiFilterSearchSeconds": 7.462
+  },
+  "contact_discovery": {
+    "commit": "8e15e189b926aa225bb73628f83891f49ff507ff",
+    "deploy": "dep-daus2t2d2mec73fkc8r0",
+    "live": true,
+    "publishedCentralAndSiteContacts": true,
+    "emailDraftLinks": true,
+    "contactCsvAndHandoffs": true,
+    "allStatusSearchTested": true,
+    "realApiContactSearchSeconds": 4.403,
+    "liveContactPanelVerified": true
+  },
+  "study_review_workspace": {
+    "commit": "401d30b82f79f43608d81044ecd452d3975ce6ab",
+    "deploy": "dep-daus9pvf3r2c73881ifg",
+    "live": true,
+    "testsPassed": 11,
+    "desktopAssistantSidebar": true,
+    "mobileViews": true,
+    "directRegistryLinks": true,
+    "visiblePrimaryContact": true,
+    "phoneLinks": true,
+    "selectedStudyServerEvidence": true,
+    "shortlistDialog": true,
+    "secondaryPanelsBelowResults": true,
+    "liveSearchVerified": true,
+    "liveSelectedStudyVerified": true,
+    "proof": "outputs/clinical-review-workspace.png",
+    "liveSelectedStudyChatVerified": true,
+    "selectedStudyChatCheckSeconds": 6.963,
+    "resultsPreservedDuringDiscussion": true
+  },
+  "latest_deployment": {
+    "commit": "3466dd04fad3b20d72d15b2266afcf1a8a2b54a8",
+    "deploy": "dep-dausgj7f3r2c7388akf0",
+    "status": "live",
+    "change": "Consistent vertical spacing"
+  },
+  "search_cleanup": {
+    "commit": "21f34a3c9b22f662960919847a72191c4815b6c1",
+    "status": "live",
+    "change": "Removed redundant welcome box, heading, and example searches"
+  }
+}
