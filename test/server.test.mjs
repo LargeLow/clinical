@@ -18,7 +18,7 @@ test('serves the interface, proxies searches and handles upstream failures',asyn
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   const base = 'http://127.0.0.1:'+server.address().port;
   try {
-    const home = await fetch(base);assert.equal(home.status,200);assert.match(await home.text(),/Find a study/);
+    const home = await fetch(base);assert.equal(home.status,200);assert.match(await home.text(),/Nikki’s research workspace/);
     const response = await fetch(base+'/api/studies?condition=asthma');assert.equal(response.status,200);assert.equal((await response.json()).nextPageToken,'next');assert.match(calls[0],/query.cond=asthma/);
     assert.equal((await fetch(base+'/api/studies?status=invalid')).status,400);
     assert.equal((await fetch(base+'/api/studies/not-a-study')).status,400);
@@ -94,4 +94,15 @@ test('streamed assistant preserves registry results when summary fails and emits
     const failed=await post('chat',{message:'Hello'},cookie);const errors=(await failed.text()).trim().split('\n').map(JSON.parse);assert.equal(errors.at(-1).type,'error');assert.match(errors.at(-1).error,/rate limited/);
     assert.equal((await fetch(base+'/health')).status,200);
   }finally{await new Promise(resolve=>server.close(resolve));}
+});
+
+test('selected-study discussion fetches registry evidence and carries shared filters without a new search',async()=>{
+  const env={OPENAI_API_KEY:'mock',CLINICAL_ACCESS_PASSWORD:'test-password-long-enough'};let selectedFetched=false,aiCalls=0;
+  const server=createServer(async(url,options)=>{
+    if(url.includes('openai.com')){aiCalls++;const payload=JSON.parse(options.body);const input=payload.input.map(m=>m.content).join('\n');assert.match(input,/Current search filters/);assert.match(input,/PHASE2,PHASE3/);assert.match(input,/verified-contact@example.org/);assert.match(input,/Selected study fetched/);return Response.json({output:[{content:[{type:'output_text',text:JSON.stringify({reply:'Published contact: verified-contact@example.org',profile:null,search:null})}]}]});}
+    assert.match(url,/\/studies\/NCT99999999$/);selectedFetched=true;return Response.json({protocolSection:{identificationModule:{nctId:'NCT99999999',briefTitle:'Verified selected trial'},contactsLocationsModule:{centralContacts:[{name:'Registry contact',email:'verified-contact@example.org'}]}}});
+  },env);
+  await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
+  const post=(path,body,cookie)=>fetch(base+'/api/assistant/'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Clinical-Request':'1',...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)});
+  try{const cookie=(await post('login',{password:env.CLINICAL_ACCESS_PASSWORD})).headers.get('set-cookie').split(';')[0];const response=await post('chat',{message:'Draft outreach for this study',studyId:'NCT99999999',filters:{phase:'PHASE2,PHASE3'}},cookie);assert.equal(response.status,200);const data=await response.json();assert.equal(data.data,null);assert.match(data.reply,/verified-contact/);assert.equal(aiCalls,1);assert.ok(selectedFetched);const invalid=await post('chat',{message:'Review',studyId:'invalid'},cookie);assert.equal(invalid.status,400);assert.equal(aiCalls,1);}finally{await new Promise(r=>server.close(r));}
 });

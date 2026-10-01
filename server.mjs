@@ -55,7 +55,7 @@ async function upstream(path, fetcher) {
 }
 
 export function createServer(fetcher = fetch, env = process.env) {
-  const assistant=createAssistant({fetcher,env,search:async input=>upstream('/studies?'+searchParameters(input),fetcher)});
+  const assistant=createAssistant({fetcher,env,getStudy:async id=>upstream('/studies/'+id,fetcher),search:async input=>upstream('/studies?'+searchParameters(input),fetcher)});
   const workspace=createWorkspace({env,fetcher,authenticated:assistant.authenticated});
   return http.createServer(async (req,res) => {
     res.setHeader('X-Content-Type-Options','nosniff');

@@ -97,3 +97,9 @@ The browser requests streamed progress events and displays returned registry stu
 ### Contact discovery
 
 All recruitment statuses remain available for relationship discovery. Search results include published central study and site contacts, email links and user-reviewed outreach drafts. CSV exports and Grok/Claude handoffs include contact fields. Contacts are sourced from the registry, may be absent or outdated, and do not establish sponsor/CRO business development responsibility. No email is sent by the assistant; email links open the user’s email program.
+
+### Study review workspace
+
+Desktop places a bounded, sticky assistant beside a single column of study cards. Mobile uses Studies/Assistant buttons with independent scroll positions. Shared filters summarize the current criteria and collapse after successful searches; manual filters apply together on submission. Preferences, onboarding and feedback remain below the working area. The shortlist opens from a count button, and Excel export is accessible from the toolbar.
+
+Cards link their title, NCT ID and source action directly to ClinicalTrials.gov. The primary published contact is visible, with email and phone links; additional contacts expand on demand. “Ask about this study” selects the record and prepares an editable question. On send, the server fetches that NCT record as assistant evidence instead of trusting client-supplied contact details. Clear study returns to general discussion. Current filters accompany questions so refinements can preserve the user's criteria. Outreach links only prepare drafts in the user's email application.

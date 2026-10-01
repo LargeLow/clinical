@@ -8,7 +8,7 @@ const more = document.querySelector('#load-more');
 const dialog = document.querySelector('#study-dialog');
 const details = document.querySelector('#study-content');
 let parameters, nextToken, total, loaded = 0, searching = false, detailRequest = 0;
-let currentStudies=[];
+let currentStudies=[],selectedStudyId=null;
 
 function element(tag, text, className) {
   const node = document.createElement(tag);
@@ -31,33 +31,36 @@ function studyContacts(study){
   const module=study.protocolSection?.contactsLocationsModule||{};
   return [...(module.centralContacts||[]).map(c=>({...c,kind:'Central study contact',facility:''})),...(module.locations||[]).flatMap(l=>(l.contacts||[]).map(c=>({...c,kind:'Site contact',facility:[l.facility,l.city,l.state,l.country].filter(Boolean).join(', ')})))];
 }
-function contactsPanel(study){
-  const contacts=studyContacts(study),panel=element('details',undefined,'study-contacts');
-  panel.append(element('summary',contacts.length?'Published contacts ('+contacts.length+')':'No published contacts in this record'));
-  panel.append(element('p','These are trial or site contacts; sponsor/CRO business development responsibility is unconfirmed.','workspace-note'));
-  if(!contacts.length){panel.append(element('p','Contact details may be absent or removed for older studies. Use the sponsor and original study record to identify the right outreach route.','workspace-note'));return panel;}
-  const id=study.protocolSection?.identificationModule?.nctId;
-  for(const c of contacts.slice(0,40)){
-    const row=element('div',undefined,'contact-row');row.append(element('strong',c.name||'Name not reported'),element('small',[c.kind,c.role,c.facility].filter(Boolean).join(' · ')));
-    if(c.email){const email=String(c.email).trim();if(/^[^\s@?&]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(email)){
-      const link=element('a',email);link.href='mailto:'+encodeURIComponent(email);row.append(link);
-      const draft=element('a','Draft outreach email','secondary');draft.href=link.href+'?subject='+encodeURIComponent('Nira Medical — study site inquiry: '+id)+'&body='+encodeURIComponent('Hello '+(c.name||'study team')+',\n\nI work in clinical research business development at Nira Medical. I am reaching out about '+id+' to explore potential site opportunities or future collaboration. Could you direct me to the person responsible for site selection or feasibility?\n\nThank you,\nNikki\nNira Medical');row.append(draft);
-    }else row.append(element('span',email));}
-    if(c.phone)row.append(element('span','Phone: '+c.phone+(c.phoneExt?' ext. '+c.phoneExt:'')));
-    panel.append(row);
-  }
-  if(contacts.length>40)panel.append(element('p','Showing the first 40 contacts. Open the original study record for the complete list.'));
-  return panel;
+function contactRow(c,id){
+  const row=element('div',undefined,'contact-row');row.append(element('strong',c.name||'Name not reported'),element('small',[c.kind,c.role,c.facility].filter(Boolean).join(' · ')));
+  if(c.email){const email=String(c.email).trim();if(/^[^\s@?&]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(email)){
+    const link=element('a',email);link.href='mailto:'+encodeURIComponent(email);row.append(link);
+    const draft=element('a','Draft outreach email','secondary');draft.href=link.href+'?subject='+encodeURIComponent('Nira Medical — study site inquiry: '+id)+'&body='+encodeURIComponent('Hello '+(c.name||'study team')+',\n\nI work in clinical research business development at Nira Medical. I am reaching out about '+id+' to explore potential site opportunities or future collaboration. Could you direct me to the person responsible for site selection or feasibility?\n\nThank you,\nNikki\nNira Medical');row.append(draft);
+  }else row.append(element('span',email));}
+  if(c.phone){const phone=element('a','Phone: '+c.phone+(c.phoneExt?' ext. '+c.phoneExt:''));const digits=String(c.phone).replace(/[^0-9+]/g,'');if(digits)phone.href='tel:'+digits+(c.phoneExt?';ext='+String(c.phoneExt).replace(/\D/g,''):'');row.append(phone);}
+  return row;
 }
+function contactsPanel(study){
+  const contacts=studyContacts(study),panel=element('div',undefined,'study-contacts');
+  panel.append(element('strong',contacts.length?'Published contact':'No published contacts in this record'));
+  if(!contacts.length){panel.append(element('p','Check the original record or sponsor for an outreach route.','workspace-note'));return panel;}
+  const id=study.protocolSection?.identificationModule?.nctId;
+  const primary=contacts.find(c=>c.kind==='Central study contact' && c.email)||contacts.find(c=>c.email)||contacts[0];
+  panel.append(contactRow(primary,id));
+  const others=contacts.filter(c=>c!==primary);
+  if(others.length){const moreContacts=element('details');moreContacts.append(element('summary','More contacts ('+others.length+')'));for(const c of others.slice(0,39))moreContacts.append(contactRow(c,id));if(others.length>39)moreContacts.append(element('p','Open the original study record for the complete list.'));panel.append(moreContacts);}
+  panel.append(element('p','Published trial/site contacts; site-selection responsibility is unconfirmed.','workspace-note'));return panel;
+}
+function studyLink(id,text,className){const link=element('a',text,className);link.href='https://clinicaltrials.gov/study/'+id;link.target='_blank';link.rel='noopener noreferrer';return link;}
 function card(study) {
   const p = study.protocolSection || {};
   const id = p.identificationModule?.nctId;
   const status = p.statusModule?.overallStatus;
   const node = element('article',undefined,'study-card');
   const meta = element('div',undefined,'card-meta');
-  meta.append(element('span',friendly(status),'status'+(status === 'RECRUITING' ? ' recruiting' : '')),element('span',id || ''));
+  meta.append(element('span',friendly(status),'status'+(status === 'RECRUITING' ? ' recruiting' : '')),studyLink(id,id || ''));
   const summary = p.descriptionModule?.briefSummary || 'Open study details to learn more.';
-  node.append(meta,element('h3',p.identificationModule?.briefTitle || 'Untitled study'),element('p',summary.length > 230 ? summary.slice(0,230)+'…' : summary,'summary'));
+  const title=element('h3');title.append(studyLink(id,p.identificationModule?.briefTitle || 'Untitled study'));node.append(meta,title,element('p',summary.length > 230 ? summary.slice(0,230)+'…' : summary,'summary'));
   node.append(element('p',(p.conditionsModule?.conditions || []).slice(0,3).join(' · ') || 'Condition not reported','card-info'));
   const phases = p.designModule?.phases;
   node.append(contactsPanel(study));
@@ -68,7 +71,7 @@ function card(study) {
   node.append(element('p',location ? [location.city,location.state,location.country].filter(Boolean).join(', ')+(locations.length > 1 ? ' + '+(locations.length-1)+' more locations' : '') : 'Location not reported','card-info'));
   const bottom = element('div',undefined,'card-bottom');
   bottom.append(element('small','Updated '+(p.statusModule?.lastUpdatePostDateStruct?.date || 'date not reported')));
-  const button = element('button','View study →','secondary');button.type = 'button';button.disabled = !/^NCT\d{8}$/.test(id);button.addEventListener('click',()=>showStudy(id));bottom.append(button);node.append(bottom);
+  const button = element('button','View study →','secondary');button.type = 'button';button.disabled = !/^NCT\d{8}$/.test(id);button.addEventListener('click',()=>showStudy(id));bottom.append(button,studyLink(id,'Open ClinicalTrials.gov ↗','secondary'));const ask=element('button','Ask about this study','secondary');ask.type='button';ask.addEventListener('click',()=>selectStudy(study));bottom.append(ask);node.append(bottom);
   const save=element('button',shortlisted.has(id) ? 'Saved ✓' : 'Shortlist +','secondary');save.type='button';save.disabled=!id;save.addEventListener('click',()=>{if(shortlisted.size>=50 && !shortlisted.has(id)) return workspaceNote('Your shortlist has 50 studies. Remove one before adding another.');shortlisted.set(id,study);save.textContent='Saved ✓';renderShortlist();persist();});bottom.append(save);
   return node;
 }
@@ -86,7 +89,7 @@ async function search(append=false) {
   try {
     const data = await request('/api/studies?'+query);
     if (!append) total = data.totalCount;
-    const studies = data.studies || [];
+    updateSearchSummary();if(!append)document.querySelector('#search-filters').open=false;const studies = data.studies || [];
     currentStudies.push(...studies);
     for (const study of studies) results.append(card(study));
     loaded += studies.length;nextToken = data.nextPageToken;more.hidden = !nextToken;
@@ -164,8 +167,8 @@ try {
 syncProfile();
 function renderShortlist(){
   const list=document.querySelector('#shortlist');list.replaceChildren();
-  document.querySelector('#shortlist-count').textContent=shortlisted.size+' studies';
-  if(!shortlisted.size) list.append(element('p','Save promising studies from the results below.','workspace-note'));
+  document.querySelector('#shortlist-count').textContent=shortlisted.size+' studies';document.querySelector('#shortlist-badge').textContent=shortlisted.size;
+  if(!shortlisted.size) list.append(element('p','Save promising studies from your results.','workspace-note'));
   for(const [id,study] of shortlisted){const p=study.protocolSection;const row=element('div',undefined,'shortlist-row');const info=element('div');const link=element('a',p.identificationModule.briefTitle || id);link.href='https://clinicaltrials.gov/study/'+id;link.target='_blank';link.rel='noopener noreferrer';info.append(link,element('small',id+' · '+(p.sponsorCollaboratorsModule?.leadSponsor?.name || 'Sponsor not reported')));const remove=element('button','Remove','secondary');remove.type='button';remove.addEventListener('click',()=>{shortlisted.delete(id);renderShortlist();persist();});row.append(info,remove);list.append(row);}
 }
 renderShortlist();
@@ -185,14 +188,15 @@ async function assistantRequest(path,value,onEvent){
   }
   const data=await r.json();if(!r.ok){if(r.status===401){aiUnlocked=false;updateAi();document.dispatchEvent(new Event('clinical-locked'));}throw Error(data.error || 'The assistant could not respond.');}return data;
 }
+let lastAssistantData=null;
 function applyAssistantStudies(data){
-  if(!data.data)return;
+  if(!data.data || data.data===lastAssistantData)return;lastAssistantData=data.data;
   if(searching){workspaceNote('A manual search is running; finish it before showing another search.');return;}
   for(const [key,value] of Object.entries(data.query||{})){
     if(['status','phase'].includes(key)){const values=String(value).split(',');form.querySelectorAll('input[name="'+key+'"]').forEach(b=>b.checked=values.includes(b.value));}
     else if(form.elements[key])form.elements[key].value=value;
   }
-  updateFilterLabels();parameters=new URLSearchParams(data.query);currentStudies=data.data.studies||[];loaded=currentStudies.length;total=data.data.totalCount;nextToken=data.data.nextPageToken;results.replaceChildren(...currentStudies.map(card));results.className='cards';heading.textContent='Studies from your conversation';count.textContent='Showing '+loaded+(typeof total==='number'?' of '+total.toLocaleString()+' studies':' studies');more.hidden=!nextToken;note(loaded?'':'No studies returned. Try broader terms.');
+  updateFilterLabels();updateSearchSummary();parameters=new URLSearchParams(data.query);currentStudies=data.data.studies||[];loaded=currentStudies.length;total=data.data.totalCount;nextToken=data.data.nextPageToken;results.replaceChildren(...currentStudies.map(card));results.className='cards';heading.textContent='Studies from your conversation';count.textContent='Showing '+loaded+(typeof total==='number'?' of '+total.toLocaleString()+' studies':' studies');more.hidden=!nextToken;note(loaded?'':'No studies returned. Try broader terms.');document.querySelector('#search-filters').open=false;document.querySelector('#view-results').hidden=false;
 }
 function updateAi(){document.querySelector('#ai-status').textContent=!aiReady?'AI account setup pending':aiUnlocked?'Assistant ready':'Assistant locked';document.querySelector('#unlock-form').hidden=!aiReady || aiUnlocked;document.querySelector('#lock-ai').hidden=!aiUnlocked;chatSend.disabled=!aiReady || !aiUnlocked || chatBusy;document.querySelectorAll('[data-prompt]').forEach(b=>b.disabled=chatBusy);}
 request('/api/assistant/status').then(data=>{aiReady=data.configured;aiUnlocked=data.authenticated;updateAi();}).catch(()=>{document.querySelector('#ai-status').textContent='Assistant unavailable';});
@@ -203,17 +207,17 @@ async function sendChat(text){
   if(!aiReady || !aiUnlocked){document.querySelector('#chat-notice').textContent=!aiReady?'The AI account is awaiting setup. Manual search, preferences and exports work now.':'Enter your assistant access password above.';chatInput.value=text;return;}
   chatBusy=true;chatInput.value=text;updateAi();bubble('user',text);const pending=bubble('assistant','Working on your question…');pending.classList.add('pending');const status=pending.querySelector('span');const started=Date.now();let phase='Working on your question…';const timer=setInterval(()=>{status.textContent=phase+' ('+Math.floor((Date.now()-started)/1000)+'s)';},1000);document.querySelector('#chat-notice').textContent='';
   try{
-    const data=await assistantRequest('chat',{message:text,history:chatHistory.slice(-10),profile,onboarding:onboardingContext},event=>{if(event.type==='progress'){phase=event.message;status.textContent=phase;}if(event.type==='studies')applyAssistantStudies(event);});
+    const data=await assistantRequest('chat',{message:text,history:chatHistory.slice(-10),profile,onboarding:onboardingContext,studyId:selectedStudyId,filters:Object.fromEntries([...new Set([...new FormData(form).keys()])].map(k=>[k,new FormData(form).getAll(k).join(',')]))},event=>{if(event.type==='progress'){phase=event.message;status.textContent=phase;}if(event.type==='studies')applyAssistantStudies(event);});
     chatHistory.push({role:'user',content:text},{role:'assistant',content:data.reply.slice(0,3000)});chatHistory=chatHistory.slice(-10);status.textContent=data.reply;pending.classList.remove('pending');chatInput.value='';
     if(data.profile && profileKeys.some(k=>(data.profile[k] || '')!==(profile[k] || ''))){proposedProfile=data.profile;document.querySelector('#proposed-profile').textContent=profileKeys.filter(k=>(data.profile[k] || '')!==(profile[k] || '')).map(k=>profileLabels[k]+': '+(data.profile[k] || 'Not specified')).join('\n');document.querySelector('#profile-suggestion').hidden=false;}
-    applyAssistantStudies(data);
+    if(!lastAssistantData || JSON.stringify(lastAssistantData)!==JSON.stringify(data.data))applyAssistantStudies(data);
     document.querySelector('#chat-notice').textContent='';
   }catch(error){const message=error.name==='TimeoutError'?'The assistant took too long. Your message is still here to retry.':error.message;status.textContent=message;pending.classList.remove('pending');document.querySelector('#chat-notice').textContent=message;}
   finally{clearInterval(timer);chatBusy=false;updateAi();}
 }
 document.querySelector('#chat-form').addEventListener('submit',e=>{e.preventDefault();sendChat(chatInput.value.trim());});
 document.querySelectorAll('[data-prompt]').forEach(b=>b.addEventListener('click',()=>sendChat(b.dataset.prompt)));
-document.querySelector('#new-chat').addEventListener('click',()=>{if(chatBusy)return;chatHistory=[];chatLog.replaceChildren();greeting();document.querySelector('#chat-notice').textContent='New conversation. Your confirmed preferences and shortlist remain.';});
+document.querySelector('#new-chat').addEventListener('click',()=>{if(chatBusy)return;chatHistory=[];chatLog.replaceChildren();clearStudyContext();greeting();document.querySelector('#chat-notice').textContent='New conversation. Your confirmed preferences and shortlist remain.';});
 document.querySelector('#accept-profile').addEventListener('click',()=>{if(!proposedProfile)return;profile=Object.fromEntries(profileKeys.map(k=>[k,proposedProfile[k] || '']));syncProfile();persist();document.querySelector('#profile-suggestion').hidden=true;workspaceNote('Suggested preferences accepted. You can edit them above.');});
 document.querySelector('#dismiss-profile').addEventListener('click',()=>{proposedProfile=null;document.querySelector('#profile-suggestion').hidden=true;});
 function selectedStudies(){return shortlisted.size ? [...shortlisted.values()] : currentStudies;}
@@ -229,3 +233,26 @@ document.querySelector('#download-brief').addEventListener('click',()=>{download
 function csvCell(value){let text=String(value ?? '');if(/^[\s]*[=+\-@]/.test(text))text="'"+text;return '"'+text.replaceAll('"','""')+'"';}
 document.querySelector('#export-studies').addEventListener('click',()=>{const studies=selectedStudies();if(!studies.length)return workspaceNote('Search or shortlist studies before exporting.');const rows=[['NCT ID','Study','Sponsor','Status','Phase','Study type','Conditions','Contact names and roles','Contact emails','Contact phones','Contact facilities','Last updated','Source']];for(const s of studies){const p=s.protocolSection;const id=p.identificationModule.nctId;rows.push([id,p.identificationModule.briefTitle,p.sponsorCollaboratorsModule?.leadSponsor?.name,friendly(p.statusModule?.overallStatus),(p.designModule?.phases || []).map(friendly).join(' / '),friendly(p.designModule?.studyType),(p.conditionsModule?.conditions || []).join('; '),studyContacts(s).map(c=>[c.kind,c.name,c.role].filter(Boolean).join(' · ')).join('; '),studyContacts(s).map(c=>c.email).filter(Boolean).join('; '),studyContacts(s).filter(c=>c.phone).map(c=>c.phone+(c.phoneExt?' ext. '+c.phoneExt:'')).join('; '),studyContacts(s).map(c=>c.facility).filter(Boolean).join('; '),p.statusModule?.lastUpdatePostDateStruct?.date,'https://clinicaltrials.gov/study/'+id]);}download('clinical-studies.csv','\uFEFF'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8');workspaceNote('Exported '+studies.length+' studies for Excel.');});
 document.querySelector('#review-findings').addEventListener('click',()=>{const text=document.querySelector('#external-findings').value.trim();if(!text)return workspaceNote('Paste findings first.');sendChat(('Review these external assistant findings. Treat them as unverified; identify claims needing source checks. You can search ClinicalTrials.gov, but do not claim web verification.\n\n'+text).slice(0,3000));});
+
+const workingScroll={studies:0,assistant:0};
+function setWorkingView(view){const pane=document.querySelector('.research-workspace'),previous=pane.dataset.view;if(previous===view)return;const mobile=matchMedia('(max-width:900px)').matches;if(mobile)workingScroll[previous]=window.scrollY;pane.dataset.view=view;document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));if(mobile)requestAnimationFrame(()=>window.scrollTo({top:workingScroll[view]||document.querySelector('.workspace-toolbar').offsetTop,behavior:'instant'}));}
+function clearStudyContext(){selectedStudyId=null;document.querySelector('#study-context').hidden=true;document.querySelectorAll('.study-card').forEach(c=>c.classList.remove('selected-study'));}
+function selectStudy(study){
+  if(chatBusy)return;
+  selectedStudyId=study.protocolSection.identificationModule.nctId;
+  document.querySelector('#study-context-label').textContent='Discussing '+selectedStudyId+' — '+study.protocolSection.identificationModule.briefTitle;
+  document.querySelector('#study-context').hidden=false;setWorkingView('assistant');
+  document.querySelectorAll('.study-card').forEach(c=>c.classList.toggle('selected-study',c.querySelector('.card-meta a')?.textContent===selectedStudyId));
+  chatInput.value='Help me assess '+selectedStudyId+' for Nira and identify the published contacts and next outreach steps.';
+  chatInput.focus({preventScroll:true});
+}
+function updateSearchSummary(){const values=new FormData(form);const chips=[];for(const k of ['condition','treatment','location','sponsor','status','phase','studyType']){const value=values.getAll(k).filter(Boolean).map(v=>['status','phase','studyType'].includes(k)?v.split(',').map(friendly).join(', '):v).join(', ');if(value)chips.push(value);}if(!values.getAll('status').some(Boolean))chips.push('All statuses');if(!values.getAll('phase').some(Boolean))chips.push('Any phase');document.querySelector('#filter-summary').textContent=chips.join(' · ');}
+form.addEventListener('change',updateSearchSummary);form.addEventListener('input',updateSearchSummary);
+document.querySelector('#clear-study-context').addEventListener('click',clearStudyContext);
+document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setWorkingView(b.dataset.view)));
+document.querySelector('#view-results').addEventListener('click',()=>{setWorkingView('studies');document.querySelector('.results-section').scrollIntoView({behavior:'smooth',block:'start'});});
+document.querySelector('#open-shortlist').addEventListener('click',()=>document.querySelector('#shortlist-dialog').showModal());
+document.querySelector('#close-shortlist').addEventListener('click',()=>document.querySelector('#shortlist-dialog').close());
+document.querySelector('#quick-export').addEventListener('click',()=>document.querySelector('#export-studies').click());
+document.querySelectorAll('[data-open-panel]').forEach(b=>b.addEventListener('click',()=>{const panel=document.getElementById(b.dataset.openPanel);panel.open=true;panel.scrollIntoView({behavior:'smooth',block:'start'});}));
+updateSearchSummary();
