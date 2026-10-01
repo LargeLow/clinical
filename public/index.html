@@ -31,7 +31,7 @@
       <label>Priority<select id="feedback-priority"><option>Normal</option><option>High</option><option>Low</option></select></label>
       <label class="remember"><input type="checkbox" id="feedback-context">Include my onboarding answers</label><button type="button" id="feedback-review">Review before sending</button>
       <div id="feedback-confirmation" hidden><h3>Review what Joe will receive</h3><pre id="feedback-preview"></pre><button type="button" id="feedback-send">Send to Joe</button><button type="button" id="feedback-cancel" class="secondary">Keep editing</button></div>
-      <p id="feedback-note" role="status"></p><h3>Your suggestions</h3><button type="button" id="feedback-refresh" class="secondary">Refresh responses</button><div id="feedback-history"></div>
+      <p id="feedback-note" role="status"></p><h3>Your suggestions</h3><button type="button" id="feedback-refresh" class="secondary">Refresh suggestions</button><div id="feedback-history"></div>
     </details>
     <details class="profile-panel"><summary>Your preferences &amp; handoffs</summary>
       <p class="workspace-note">Leave anything unknown blank. The assistant asks gradually, and you review its suggested changes.</p>
@@ -53,7 +53,6 @@
       </form>
     </section>
     <section class="results-section" aria-labelledby="results-heading"><div class="results-heading"><h2 id="results-heading">Your search starts here</h2><p id="result-count"></p></div><p id="message" role="status" aria-live="polite"></p><div id="results"><div class="empty-state"><div class="empty-icon" aria-hidden="true">⌕</div><h3>A little direction goes a long way.</h3><p>Enter a condition, treatment, or location above.<br>We’ll help you explore the studies that match.</p><div class="examples"><span>Try a search:</span><button type="button" data-condition="multiple sclerosis">Multiple sclerosis ↗</button><button type="button" data-condition="Parkinson disease">Parkinson’s ↗</button><button type="button" data-condition="Alzheimer disease">Alzheimer’s disease ↗</button></div></div></div><button id="load-more" class="secondary" hidden>Load more studies ↓</button></section>
-    <details class="profile-panel" id="owner-inbox"><summary>Joe’s suggestion inbox</summary><p class="workspace-note">Owner access is separate from Nikki’s assistant password.</p><form id="owner-login"><label>Owner password<input type="password" id="owner-password" autocomplete="current-password" maxlength="200" required></label><button type="submit">Unlock owner inbox</button></form><div class="workspace-actions"><button type="button" id="owner-logout" class="secondary" hidden>Lock owner inbox</button><button type="button" id="owner-refresh" class="secondary">Refresh inbox</button></div><p id="owner-note" role="status"></p><div id="owner-items"></div></details>
   </main>
   <footer><span>Clinical<span class="brand-dot">.</span> <small>Clarity for your next step.</small></span><p>Data provided by ClinicalTrials.gov. An independent search interface.<br>Recruiting patients does not confirm a study is accepting additional sites. Verify opportunities with the sponsor.</p></footer>
   <dialog id="study-dialog"><div class="dialog-top"><span class="eyebrow">STUDY DETAILS</span><button id="close-dialog" class="secondary" aria-label="Close study details">Close ×</button></div><div id="study-content"></div></dialog>
