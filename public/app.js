@@ -82,7 +82,7 @@ async function search(append=false) {
   if (!append) {
     parameters = new URLSearchParams(new FormData(form));nextToken = undefined;total = undefined;loaded = 0;
     currentStudies=[];
-    results.replaceChildren();results.className = 'cards';more.hidden = true;count.textContent = '';heading.textContent = 'Search results';
+    results.replaceChildren();results.className = 'cards';more.hidden = true;count.textContent = '';heading.hidden=false;heading.textContent = 'Search results';
   }
   const query = new URLSearchParams(parameters);
   if (append && nextToken) query.set('pageToken',nextToken);
@@ -138,7 +138,6 @@ form.addEventListener('submit',event=>{event.preventDefault();search();});
 more.addEventListener('click',()=>search(true));
 document.querySelector('#close-dialog').addEventListener('click',()=>dialog.close());
 dialog.addEventListener('close',()=>{detailRequest++;});
-document.querySelectorAll('[data-condition]').forEach(button=>button.addEventListener('click',()=>{if(searching)return;form.reset();document.querySelector('#condition').value = button.dataset.condition;search();}));
 
 const profileKeys=['territory','clinics','indications','investigators','studyPreferences','workingPreferences'];
 const profileLabels={territory:'Territory / states',clinics:'Clinics',indications:'Indications',investigators:'Investigators',studyPreferences:'Study preferences',workingPreferences:'Working preferences'};
@@ -196,7 +195,7 @@ function applyAssistantStudies(data){
     if(['status','phase'].includes(key)){const values=String(value).split(',');form.querySelectorAll('input[name="'+key+'"]').forEach(b=>b.checked=values.includes(b.value));}
     else if(form.elements[key])form.elements[key].value=value;
   }
-  updateFilterLabels();updateSearchSummary();parameters=new URLSearchParams(data.query);currentStudies=data.data.studies||[];loaded=currentStudies.length;total=data.data.totalCount;nextToken=data.data.nextPageToken;results.replaceChildren(...currentStudies.map(card));results.className='cards';heading.textContent='Studies from your conversation';count.textContent='Showing '+loaded+(typeof total==='number'?' of '+total.toLocaleString()+' studies':' studies');more.hidden=!nextToken;note(loaded?'':'No studies returned. Try broader terms.');document.querySelector('#search-filters').open=false;document.querySelector('#view-results').hidden=false;
+  updateFilterLabels();updateSearchSummary();parameters=new URLSearchParams(data.query);currentStudies=data.data.studies||[];loaded=currentStudies.length;total=data.data.totalCount;nextToken=data.data.nextPageToken;results.replaceChildren(...currentStudies.map(card));results.className='cards';heading.hidden=false;heading.textContent='Studies from your conversation';count.textContent='Showing '+loaded+(typeof total==='number'?' of '+total.toLocaleString()+' studies':' studies');more.hidden=!nextToken;note(loaded?'':'No studies returned. Try broader terms.');document.querySelector('#search-filters').open=false;document.querySelector('#view-results').hidden=false;
 }
 function updateAi(){document.querySelector('#ai-status').textContent=!aiReady?'AI account setup pending':aiUnlocked?'Assistant ready':'Assistant locked';document.querySelector('#unlock-form').hidden=!aiReady || aiUnlocked;document.querySelector('#lock-ai').hidden=!aiUnlocked;chatSend.disabled=!aiReady || !aiUnlocked || chatBusy;document.querySelectorAll('[data-prompt]').forEach(b=>b.disabled=chatBusy);}
 request('/api/assistant/status').then(data=>{aiReady=data.configured;aiUnlocked=data.authenticated;updateAi();}).catch(()=>{document.querySelector('#ai-status').textContent='Assistant unavailable';});
