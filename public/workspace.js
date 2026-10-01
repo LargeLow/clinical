@@ -12,6 +12,7 @@
   async function save(profile){keepDraft();await api('save',{answers,step,completed,...(profile?{profile}:{})});document.dispatchEvent(new CustomEvent('clinical-onboarding-context',{detail:answers}));}
   function capture(){if(step<questions.length)answers[questions[step].id]=by('onboarding-answer')?.value.trim()||'';}
   function render(){
+    by('onboarding-panel').querySelector('summary').textContent=completed?'Your saved setup — review or edit':'Make this workspace yours';
     const area=by('onboarding-question');area.replaceChildren();
     by('onboarding-progress').textContent=step<questions.length?'Question '+(step+1)+' of '+questions.length:completed?'Setup saved — editable anytime':'Review your answers';
     by('onboarding-back').disabled=step===0;by('onboarding-next').disabled=false;by('onboarding-skip').disabled=false;by('onboarding-next').hidden=step>=questions.length;by('onboarding-skip').hidden=step>=questions.length;by('onboarding-save-review').hidden=step<questions.length;
@@ -39,7 +40,7 @@
   by('onboarding-next').addEventListener('click',()=>move(1));by('onboarding-back').addEventListener('click',()=>move(-1));by('onboarding-skip').addEventListener('click',()=>move(1,true));
   by('onboarding-pause').addEventListener('click',async()=>{capture();try{await save();by('onboarding-panel').open=false;note('Progress saved. Continue whenever you like.');}catch(e){note(e.message);}});
   by('onboarding-search').addEventListener('click',()=>{capture();keepDraft();by('onboarding-panel').open=false;document.querySelector('#search-form').scrollIntoView({behavior:'smooth'});});
-  by('onboarding-save-review').addEventListener('click',async()=>{const p=Object.fromEntries(profileKeys.map(k=>[k,by('onboarding-profile-'+k).value.trim()]));try{completed=true;await save(p);sharedProfile=p;document.dispatchEvent(new CustomEvent('clinical-shared-profile',{detail:p}));note('Onboarding and confirmed assistant preferences saved. You can edit them anytime.');render();}catch(e){completed=false;note(e.message);}});
+  by('onboarding-save-review').addEventListener('click',async()=>{const p=Object.fromEntries(profileKeys.map(k=>[k,by('onboarding-profile-'+k).value.trim()]));try{completed=true;await save(p);sharedProfile=p;document.dispatchEvent(new CustomEvent('clinical-shared-profile',{detail:p}));note('Onboarding and confirmed assistant preferences saved. You can edit them anytime.');render();by('onboarding-panel').open=false;}catch(e){completed=false;note(e.message);}});
   document.addEventListener('clinical-unlocked',load);
   document.addEventListener('clinical-profile-saved',async e=>{if(!loaded)return;try{await save(e.detail);sharedProfile=e.detail;}catch(error){note('Profile remains available in this browser, but shared saving failed: '+error.message);}});
   document.addEventListener('clinical-locked',()=>{loaded=false;by('feedback-history').replaceChildren();note('Unlock the assistant to load your saved workspace.');});
