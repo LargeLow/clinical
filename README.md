@@ -53,7 +53,7 @@ Requests have timeouts, inputs are validated, upstream failures are surfaced as 
 
 ## Nikki’s research workspace
 
-Conversational onboarding covers territory, clinics, indications, investigators, study preferences and working preferences. AI preference changes are suggestions requiring acceptance. Manual searches support sponsor/collaborator, phase and study type. Blank location searches all countries; specify United States for US-site-only discovery. Shortlist up to 50 studies, export Excel-compatible CSV, and prepare source-linked Grok/Claude handoffs. Those handoffs copy/download text; there are no direct Grok, Claude, Microsoft 365 or corporate workspace integrations. External findings can be pasted back for discussion; no general web browsing or platform registration is performed by the assistant.
+Conversational onboarding covers territory, clinics, indications, investigators, study preferences and working preferences. AI preference changes are suggestions requiring acceptance. Manual searches support sponsor/collaborator, multiple phases and recruitment statuses, and study type. Within each status or phase selection, matches use OR; other filters combine with AND. Blank location searches all countries; specify United States for US-site-only discovery. Shortlist up to 50 studies, export Excel-compatible CSV, and prepare source-linked Grok/Claude handoffs. Those handoffs copy/download text; there are no direct Grok, Claude, Microsoft 365 or corporate workspace integrations. External findings can be pasted back for discussion; no general web browsing or platform registration is performed by the assistant.
 
 Preferences and shortlist are kept in memory for the visit unless the user selects Remember. That opt-in stores them in localStorage on that browser, not in a shared database. Conversations are session-only and the API receives at most the last ten messages. This is a single-person pilot, not a multi-user CRM or a PI registration tracker. No patient data is needed.
 
@@ -63,10 +63,10 @@ Use the owner's joe@uptechprojects.com OpenAI Platform account. Create a dedicat
 
 - `OPENAI_API_KEY`: project API key.
 - `CLINICAL_ACCESS_PASSWORD`: a separate access password of at least 12 characters; shared only with intended users.
-- `OPENAI_MODEL`: optional; defaults to `gpt-5-mini`.
+- `OPENAI_MODEL`: optional; defaults to `gpt-4.1-mini`.
 - `AI_DAILY_REQUEST_LIMIT`: optional; defaults to 100 chat requests per UTC day per running process. Each search chat uses at most two model calls.
 
-Save and redeploy, then unlock the assistant on the website. The API uses Responses with structured outputs, `store:false`, bounded message lengths, 2,500 output tokens per call and low reasoning effort. OpenAI's other retention policies still apply; `store:false` is not a zero-retention guarantee. Returned registry evidence is summarized with NCT identifiers. No patient recruitment or site acceptance is inferred from a recruiting status.
+Save and redeploy, then unlock the assistant on the website. The API uses Responses with structured outputs, `store:false`, bounded message lengths, 2,200 output tokens per call and no reasoning step on the default model. OpenAI's other retention policies still apply; `store:false` is not a zero-retention guarantee. Returned registry evidence is summarized with NCT identifiers. No patient recruitment or site acceptance is inferred from a recruiting status.
 
 Sessions use signed, HttpOnly, Secure, SameSite=Strict cookies lasting 12 hours. Restarting the server invalidates sessions. Password login has a global 30-attempt hourly limit; chat has an eight-request minute limit and one concurrent request. Request counters are in memory and reset on restart; they are not durable dollar-budget enforcement. Monitor OpenAI usage and billing; persistent quota enforcement would require durable storage. The assistant stays disabled until both its API key and password are configured.
 
@@ -86,6 +86,10 @@ Required runtime setup:
 
 Runtime storage is a bounded, single-workspace JSON document, saved using serialized atomic replacement and file fsync. It is appropriate for this single-instance pilot, not multi-user concurrent work. Owner inbox access does not expose the complete onboarding/profile record; only submission context Nikki chose to include. Suggestion content should still contain only professional workflow information; the shared password is a pilot access mechanism, not a corporate identity system.
 
-Feedback is saved first. Notifications are tracked as pending/failed/sent (sent means accepted by Resend, not guaranteed inbox delivery). Owner retry uses a stable Resend idempotency key. Resend's idempotency window still applies: after it expires, manually retrying an ambiguously failed send can produce another notification. There is no background retry or delivery-webhook integration in this version. Unconfigured storage returns an explicit error rather than silently using ephemeral files. Onboarding drafts are retained in this browser until overwritten; shared workspace saving is separate from the existing browser-only shortlist option. Locking access does not delete a local draft.
+Feedback is saved first. Notifications are tracked as pending/failed/sent (sent means accepted by Resend, not guaranteed inbox delivery). The retained maintenance retry API uses a stable Resend idempotency key. Resend's idempotency window still applies: after it expires, manually retrying an ambiguously failed send can produce another notification. There is no background retry or delivery-webhook integration in this version. Unconfigured storage returns an explicit error rather than silently using ephemeral files. Onboarding drafts are retained in this browser until overwritten; shared workspace saving is separate from the existing browser-only shortlist option. Locking access does not delete a local draft.
 
 Tests cover independent access, persistence across restart, duplicate submissions, email failure/retry, concurrent writes, corrupt-file preservation and missing-storage behavior.
+
+### Chat reliability and latency
+
+The browser requests streamed progress events and displays returned registry studies before AI summarization finishes. An AI summary failure preserves the search results with a factual fallback; other errors appear inside the conversation with the original message retained for retry. Each model call has a 30-second timeout; transport/API failures log only status and diagnostic codes, never credentials or conversation text. The default GPT-4.1 mini model omits reasoning configuration; reasoning settings are only sent to reasoning models. Profile output is null when no changes are proposed, reducing response size.
