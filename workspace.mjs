@@ -5,7 +5,7 @@ import { cleanProfile } from './assistant.mjs';
 
 export const questions = [
   {id:'goals',title:'What would you most like help with?',hint:'Finding studies, adding sites, sponsor/CRO relationships, or PI visibility.'},
-  {id:'territory',title:'Which states and clinics do you cover?',hint:'Include occasional coverage. Anything uncertain can stay blank.'},
+  {id:'territory',title:'With nationwide coverage, which clinics or regions should we prioritize?',hint:'Joe confirmed you cover business development across the United States. Add any current focus, or leave blank for nationwide coverage.'},
   {id:'fit',title:'Which indications, investigators and clinic capabilities are priorities?',hint:'Research interests, equipment, experience and capacity you can confirm.'},
   {id:'workflow',title:'Walk through your last study opportunity. Where did you spend the most time?',hint:'From discovering a study through contacts and feasibility.'},
   {id:'pipeline',title:'How do you track contacts and follow-ups today?',hint:'What would make an opportunity shortlist useful?'},
