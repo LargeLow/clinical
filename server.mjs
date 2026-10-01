@@ -2,10 +2,11 @@ import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createAssistant } from './assistant.mjs';
+import { createWorkspace } from './workspace.mjs';
 
 const apiBase = 'https://clinicaltrials.gov/api/v2';
 const statuses = new Set(['RECRUITING', 'NOT_YET_RECRUITING', 'ACTIVE_NOT_RECRUITING', 'COMPLETED', 'ENROLLING_BY_INVITATION', 'TERMINATED', 'WITHDRAWN', 'SUSPENDED', 'UNKNOWN']);
-const staticFiles = new Map([['/', ['index.html', 'text/html']], ['/app.js', ['app.js', 'text/javascript']], ['/style.css', ['style.css', 'text/css']]]);
+const staticFiles = new Map([['/', ['index.html', 'text/html']], ['/app.js', ['app.js', 'text/javascript']], ['/style.css', ['style.css', 'text/css']], ['/workspace.js',['workspace.js','text/javascript']]]);
 const cache = new Map();
 
 export function searchParameters(input) {
@@ -54,6 +55,7 @@ async function upstream(path, fetcher) {
 
 export function createServer(fetcher = fetch, env = process.env) {
   const assistant=createAssistant({fetcher,env,search:async input=>upstream('/studies?'+searchParameters(input),fetcher)});
+  const workspace=createWorkspace({env,fetcher,authenticated:assistant.authenticated});
   return http.createServer(async (req,res) => {
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('Referrer-Policy','no-referrer');
@@ -62,6 +64,7 @@ export function createServer(fetcher = fetch, env = process.env) {
     try {
       const url = new URL(req.url,'http://localhost');
       if(await assistant(req,res,url,json)) return;
+      if(await workspace(req,res,url,json)) return;
       if (req.method !== 'GET') return json(405,{error:'Method not allowed.'});
       if (url.pathname === '/health') return json(200,{status:'ok'});
       if (url.pathname === '/api/studies') {

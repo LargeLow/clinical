@@ -73,3 +73,19 @@ Sessions use signed, HttpOnly, Secure, SameSite=Strict cookies lasting 12 hours.
 ### Verification
 
 `npm test` checks registry mapping, validation, proxy failures, AI configuration/authentication, same-origin request markers, mocked Responses output, registry-backed chat, request limits and key non-disclosure. A real AI completion requires the configured account and billing; mocks do not verify model access. Browser smoke checks cover search, shortlist, profile edits and handoff copying.
+
+## Resumable onboarding and Joe's feedback inbox
+
+Nine optional onboarding questions cover goals, territory, clinic/PI fit, workflow, pipeline, PI platforms, monitoring, outputs and build priorities. Answers can be reviewed and edited; confirmed assistant preferences are explicitly entered on the review screen. No chat transcript is shared automatically. Feedback has a preview and a separate Send to Joe action, with optional onboarding context. Joe has separate owner access; status and responses are visible to Nikki.
+
+Required runtime setup:
+
+- Attach a small persistent Render disk at `/var/data` and set `CLINICAL_DATA_DIR=/var/data`. This adds storage cost and disables zero-downtime deployments. Never set the path to the ordinary ephemeral project directory.
+- Set `CLINICAL_ADMIN_PASSWORD` to a separate owner password, at least 12 characters. Do not reuse Nikki's assistant password.
+- Set `RESEND_API_KEY` (send permission only) and `FEEDBACK_FROM` to a verified Resend sender, e.g. `joe@uptechprojects.com`. Email recipient is fixed server-side to `joe@uptechprojects.com`.
+
+Runtime storage is a bounded, single-workspace JSON document, saved using serialized atomic replacement and file fsync. It is appropriate for this single-instance pilot, not multi-user concurrent work. Owner inbox access does not expose the complete onboarding/profile record; only submission context Nikki chose to include. Suggestion content should still contain only professional workflow information; the shared password is a pilot access mechanism, not a corporate identity system.
+
+Feedback is saved first. Notifications are tracked as pending/failed/sent (sent means accepted by Resend, not guaranteed inbox delivery). Owner retry uses a stable Resend idempotency key. Resend's idempotency window still applies: after it expires, manually retrying an ambiguously failed send can produce another notification. There is no background retry or delivery-webhook integration in this version. Unconfigured storage returns an explicit error rather than silently using ephemeral files. Onboarding drafts are retained in this browser until overwritten; shared workspace saving is separate from the existing browser-only shortlist option. Locking access does not delete a local draft.
+
+Tests cover independent access, persistence across restart, duplicate submissions, email failure/retry, concurrent writes, corrupt-file preservation and missing-storage behavior.

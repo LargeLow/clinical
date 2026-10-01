@@ -113,6 +113,8 @@ document.querySelectorAll('[data-condition]').forEach(button=>button.addEventLis
 const profileKeys=['territory','clinics','indications','investigators','studyPreferences','workingPreferences'];
 const profileLabels={territory:'Territory / states',clinics:'Clinics',indications:'Indications',investigators:'Investigators',studyPreferences:'Study preferences',workingPreferences:'Working preferences'};
 const emptyProfile=()=>Object.fromEntries(profileKeys.map(key=>[key,'']));
+let onboardingContext={};
+document.addEventListener('clinical-onboarding-context',e=>{onboardingContext=e.detail;});
 let profile=emptyProfile(),proposedProfile=null,chatHistory=[],aiReady=false,aiUnlocked=false,chatBusy=false;
 const shortlisted=new Map();
 const profileForm=document.querySelector('#profile-form');
@@ -121,8 +123,10 @@ const chatLog=document.querySelector('#conversation');
 const chatInput=document.querySelector('#chat-message');
 const chatSend=document.querySelector('#chat-send');
 const workspaceNote=text=>document.querySelector('#workspace-notice').textContent=text;
+document.addEventListener('clinical-shared-profile',e=>{profile=Object.fromEntries(profileKeys.map(k=>[k,e.detail[k]||'']));syncProfile();});
 function syncProfile(){for(const key of profileKeys) profileForm.elements[key].value=profile[key] || '';}
 function persist(){
+  document.dispatchEvent(new CustomEvent('clinical-profile-saved',{detail:profile}));
   try {if(remember.checked) localStorage.setItem('clinical-workspace-v1',JSON.stringify({profile,shortlist:[...shortlisted.values()]}));else localStorage.removeItem('clinical-workspace-v1');}
   catch {workspaceNote('Browser storage is unavailable or full. Download a brief to keep your work.');}
 }
@@ -147,14 +151,14 @@ greeting();
 async function assistantRequest(path,value){const r=await fetch('/api/assistant/'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Clinical-Request':'1'},body:JSON.stringify(value),signal:AbortSignal.timeout(150000)});const data=await r.json();if(!r.ok){if(r.status===401){aiUnlocked=false;updateAi();}throw new Error(data.error || 'The assistant could not respond.');}return data;}
 function updateAi(){document.querySelector('#ai-status').textContent=!aiReady?'AI account setup pending':aiUnlocked?'Assistant ready':'Assistant locked';document.querySelector('#unlock-form').hidden=!aiReady || aiUnlocked;document.querySelector('#lock-ai').hidden=!aiUnlocked;chatSend.disabled=!aiReady || !aiUnlocked || chatBusy;document.querySelectorAll('[data-prompt]').forEach(b=>b.disabled=chatBusy);}
 request('/api/assistant/status').then(data=>{aiReady=data.configured;aiUnlocked=data.authenticated;updateAi();}).catch(()=>{document.querySelector('#ai-status').textContent='Assistant unavailable';});
-document.querySelector('#unlock-form').addEventListener('submit',async event=>{event.preventDefault();const input=event.currentTarget.elements.password;try{await assistantRequest('login',{password:input.value});input.value='';aiUnlocked=true;updateAi();document.querySelector('#chat-notice').textContent='Assistant unlocked for this browser session.';}catch(error){document.querySelector('#chat-notice').textContent=error.message;}});
-document.querySelector('#lock-ai').addEventListener('click',async()=>{try{await assistantRequest('logout',{});aiUnlocked=false;updateAi();}catch(error){document.querySelector('#chat-notice').textContent=error.message;}});
+document.querySelector('#unlock-form').addEventListener('submit',async event=>{event.preventDefault();const input=event.currentTarget.elements.password;try{await assistantRequest('login',{password:input.value});input.value='';aiUnlocked=true;updateAi();document.dispatchEvent(new Event('clinical-unlocked'));document.querySelector('#chat-notice').textContent='Assistant unlocked for this browser session.';}catch(error){document.querySelector('#chat-notice').textContent=error.message;}});
+document.querySelector('#lock-ai').addEventListener('click',async()=>{try{await assistantRequest('logout',{});aiUnlocked=false;updateAi();document.dispatchEvent(new Event('clinical-locked'));}catch(error){document.querySelector('#chat-notice').textContent=error.message;}});
 async function sendChat(text){
   if(chatBusy)return;
   if(!aiReady || !aiUnlocked){document.querySelector('#chat-notice').textContent=!aiReady?'The AI account is awaiting setup. Manual search, preferences and exports work now.':'Enter your assistant access password above.';chatInput.value=text;return;}
   chatBusy=true;updateAi();bubble('user',text);document.querySelector('#chat-notice').textContent='Thinking…';
   try{
-    const data=await assistantRequest('chat',{message:text,history:chatHistory.slice(-10),profile});
+    const data=await assistantRequest('chat',{message:text,history:chatHistory.slice(-10),profile,onboarding:onboardingContext});
     chatHistory.push({role:'user',content:text},{role:'assistant',content:data.reply.slice(0,3000)});chatHistory=chatHistory.slice(-10);bubble('assistant',data.reply);chatInput.value='';
     if(data.profile && profileKeys.some(k=>(data.profile[k] || '')!==(profile[k] || ''))){proposedProfile=data.profile;document.querySelector('#proposed-profile').textContent=profileKeys.filter(k=>(data.profile[k] || '')!==(profile[k] || '')).map(k=>profileLabels[k]+': '+(data.profile[k] || 'Not specified')).join('\n');document.querySelector('#profile-suggestion').hidden=false;}
     if(data.data){if(!searching){for(const [key,value] of Object.entries(data.query || {}))if(form.elements[key])form.elements[key].value=value;parameters=new URLSearchParams(data.query);currentStudies=data.data.studies || [];loaded=currentStudies.length;total=data.data.totalCount;nextToken=data.data.nextPageToken;results.replaceChildren(...currentStudies.map(card));results.className='cards';heading.textContent='Studies from your conversation';count.textContent='Showing '+loaded+(typeof total==='number'?' of '+total.toLocaleString()+' studies':' studies');more.hidden=!nextToken;note(loaded?'':'No studies returned. Try broader terms.');}else workspaceNote('A manual search was running; ask again to show the AI search results.');}
