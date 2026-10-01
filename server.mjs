@@ -16,14 +16,15 @@ export function searchParameters(input) {
     if (value.length > 250) throw new Error('Search terms must be 250 characters or fewer.');
     if (value) params.set(target, value);
   }
-  const status = input.get('status');
-  if (status) {
-    if (!statuses.has(status)) throw new Error('Choose a valid recruitment status.');
-    params.set('filter.overallStatus', status);
+  const values = key => [...new Set(input.getAll(key).flatMap(v => v.split(',')).map(v => v.trim()).filter(Boolean))];
+  const selectedStatuses = values('status');
+  if (selectedStatuses.length) {
+    if (selectedStatuses.some(v => !statuses.has(v))) throw new Error('Choose valid recruitment statuses.');
+    params.set('filter.overallStatus', selectedStatuses.join(','));
   }
   const filters=[];
-  const phase=input.get('phase');
-  if(phase) {if(!['EARLY_PHASE1','PHASE1','PHASE2','PHASE3','PHASE4','NA'].includes(phase)) throw new Error('Choose a valid study phase.');filters.push('AREA[Phase]'+phase);}
+  const phases=values('phase');
+  if(phases.length) {if(phases.some(v=>!['EARLY_PHASE1','PHASE1','PHASE2','PHASE3','PHASE4','NA'].includes(v))) throw new Error('Choose valid study phases.');filters.push(phases.length===1?'AREA[Phase]'+phases[0]:'('+phases.map(v=>'AREA[Phase]'+v).join(' OR ')+')');}
   const type=input.get('studyType');
   if(type) {if(!['INTERVENTIONAL','OBSERVATIONAL'].includes(type)) throw new Error('Choose a valid study type.');filters.push('AREA[StudyType]'+type);}
   if(filters.length) params.set('filter.advanced',filters.join(' AND '));
@@ -60,7 +61,10 @@ export function createServer(fetcher = fetch, env = process.env) {
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('Referrer-Policy','no-referrer');
     res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
-    const json = (status, value) => {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(value));};
+    const json = (status, value) => {
+      if(res.headersSent) {res.end(JSON.stringify(status>=400?{type:'error',...value}:{type:'result',...value})+'\n');return;}
+      res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});res.end(JSON.stringify(value));
+    };
     try {
       const url = new URL(req.url,'http://localhost');
       if(await assistant(req,res,url,json)) return;
