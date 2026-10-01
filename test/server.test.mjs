@@ -61,3 +61,37 @@ test('assistant requires configuration and session, executes registry search, an
     env.OPENAI_API_KEY='';assert.equal((await post('login',{password:env.CLINICAL_ACCESS_PASSWORD})).status,503);
   } finally {await new Promise(resolve=>server.close(resolve));}
 });
+
+test('multiple status and phase filters use OR within groups and preserve pagination',()=>{
+  const input=new URLSearchParams('status=RECRUITING&status=NOT_YET_RECRUITING&phase=PHASE2&phase=PHASE3&studyType=INTERVENTIONAL&pageToken=next');
+  const p=searchParameters(input);
+  assert.equal(p.get('filter.overallStatus'),'RECRUITING,NOT_YET_RECRUITING');
+  assert.equal(p.get('filter.advanced'),'(AREA[Phase]PHASE2 OR AREA[Phase]PHASE3) AND AREA[StudyType]INTERVENTIONAL');
+  assert.equal(p.get('pageToken'),'next');
+  const comma=searchParameters(new URLSearchParams({status:'RECRUITING,NOT_YET_RECRUITING,RECRUITING',phase:'PHASE2,PHASE3'}));
+  assert.equal(comma.get('filter.overallStatus'),'RECRUITING,NOT_YET_RECRUITING');
+  assert.throws(()=>searchParameters(new URLSearchParams('status=RECRUITING&status=INVALID')));
+  assert.throws(()=>searchParameters(new URLSearchParams('phase=PHASE2&phase=INVALID')));
+});
+
+test('streamed assistant preserves registry results when summary fails and emits visible errors',async()=>{
+  const env={OPENAI_API_KEY:'mock-key',CLINICAL_ACCESS_PASSWORD:'test-password-long-enough'};
+  let calls=0;
+  const server=createServer(async(url,options)=>{
+    if(!url.includes('openai.com'))return Response.json({totalCount:1,studies:[{protocolSection:{identificationModule:{nctId:'NCT00000001',briefTitle:'Registry example'}}}]});
+    const payload=JSON.parse(options.body);assert.equal(payload.model,'gpt-4.1-mini');assert.equal(payload.reasoning,undefined);
+    if(++calls>1)return Response.json({error:{code:'rate_limit_exceeded'}},{status:429});
+    return Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({reply:'Searching.',profile:null,search:{condition:'MS',treatment:'',location:'',sponsor:'',status:'RECRUITING,NOT_YET_RECRUITING',phase:'PHASE2,PHASE3',studyType:''}})}]}]});
+  },env);
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base='http://127.0.0.1:'+server.address().port;
+  const post=(path,value,cookie)=>fetch(base+'/api/assistant/'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Clinical-Request':'1',Accept:'application/x-ndjson',...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(value)});
+  try{
+    const cookie=(await post('login',{password:env.CLINICAL_ACCESS_PASSWORD})).headers.get('set-cookie').split(';')[0];
+    const r=await post('chat',{message:'Find studies',profile:{territory:'United States'}},cookie);
+    const events=(await r.text()).trim().split('\n').map(JSON.parse);
+    assert.equal(events[0].type,'progress');assert.ok(events.find(e=>e.type==='studies'));
+    const final=events.at(-1);assert.equal(final.type,'result');assert.match(final.reply,/NCT00000001/);assert.match(final.warning,/summary/);assert.equal(final.profile.territory,'United States');
+    const failed=await post('chat',{message:'Hello'},cookie);const errors=(await failed.text()).trim().split('\n').map(JSON.parse);assert.equal(errors.at(-1).type,'error');assert.match(errors.at(-1).error,/rate limited/);
+    assert.equal((await fetch(base+'/health')).status,200);
+  }finally{await new Promise(resolve=>server.close(resolve));}
+});
