@@ -74,14 +74,14 @@ Sessions use signed, HttpOnly, Secure, SameSite=Strict cookies lasting 12 hours.
 
 `npm test` checks registry mapping, validation, proxy failures, AI configuration/authentication, same-origin request markers, mocked Responses output, registry-backed chat, request limits and key non-disclosure. A real AI completion requires the configured account and billing; mocks do not verify model access. Browser smoke checks cover search, shortlist, profile edits and handoff copying.
 
-## Resumable onboarding and Joe's feedback inbox
+## Resumable onboarding and email suggestions
 
-Nine optional onboarding questions cover goals, territory, clinic/PI fit, workflow, pipeline, PI platforms, monitoring, outputs and build priorities. Answers can be reviewed and edited; confirmed assistant preferences are explicitly entered on the review screen. No chat transcript is shared automatically. Feedback has a preview and a separate Send to Joe action, with optional onboarding context. Joe has separate owner access; status and responses are visible to Nikki.
+Nine optional onboarding questions cover goals, territory, clinic/PI fit, workflow, pipeline, PI platforms, monitoring, outputs and build priorities. Answers can be reviewed and edited; confirmed assistant preferences are explicitly entered on the review screen. No chat transcript is shared automatically. Feedback has a preview and a separate Send to Joe action, with optional onboarding context. Suggestions are delivered to Joe's email program. Nikki can view her submitted suggestions; there is no owner inbox in the website UI.
 
 Required runtime setup:
 
 - Attach a small persistent Render disk at `/var/data` and set `CLINICAL_DATA_DIR=/var/data`. This adds storage cost and disables zero-downtime deployments. Never set the path to the ordinary ephemeral project directory.
-- Set `CLINICAL_ADMIN_PASSWORD` to a separate owner password, at least 12 characters. Do not reuse Nikki's assistant password.
+- `CLINICAL_ADMIN_PASSWORD` is optional for retained maintenance APIs; no owner controls are shown in the website.
 - Set `RESEND_API_KEY` (send permission only) and `FEEDBACK_FROM` to a verified Resend sender, e.g. `joe@uptechprojects.com`. Email recipient is fixed server-side to `joe@uptechprojects.com`.
 
 Runtime storage is a bounded, single-workspace JSON document, saved using serialized atomic replacement and file fsync. It is appropriate for this single-instance pilot, not multi-user concurrent work. Owner inbox access does not expose the complete onboarding/profile record; only submission context Nikki chose to include. Suggestion content should still contain only professional workflow information; the shared password is a pilot access mechanism, not a corporate identity system.
