@@ -20,11 +20,6 @@
       <div class="workspace-actions"><button type="button" id="new-chat" class="secondary">New conversation</button><button type="button" id="lock-ai" class="secondary" hidden>Lock assistant</button></div>
       <p id="chat-notice" role="status"></p>
     </section>
-    <details class="profile-panel" id="onboarding-panel"><summary>Make this workspace yours</summary>
-      <p class="workspace-note">A few questions to shape this around your work. Skip anything, pause, or start searching. Answers are saved to this shared Clinical workspace after you unlock; drafts stay on this browser. Share with Joe only when you choose.</p>
-      <p id="onboarding-progress"></p><div id="onboarding-question"></div>
-      <div class="workspace-actions"><button type="button" id="onboarding-back" class="secondary">Back</button><button type="button" id="onboarding-next">Save &amp; continue</button><button type="button" id="onboarding-skip" class="secondary">Skip</button><button type="button" id="onboarding-save-review" hidden>Save reviewed setup</button><button type="button" id="onboarding-pause" class="secondary">Continue later</button><button type="button" id="onboarding-search" class="secondary">Start searching</button><button type="button" id="onboarding-load" class="secondary" hidden>Reload shared answers</button></div><p id="onboarding-note" role="status"></p>
-    </details>
     <details class="profile-panel" id="feedback-panel"><summary>Send Joe a suggestion</summary>
       <p class="workspace-note">Tell Joe what would make this more useful. Review your message before sending. No conversation is included automatically.</p>
       <label>Your suggestion<textarea id="feedback-message" rows="4" maxlength="3000" placeholder="I’d save time if this could…"></textarea></label>
@@ -53,6 +48,11 @@
       </form>
     </section>
     <section class="results-section" aria-labelledby="results-heading"><div class="results-heading"><h2 id="results-heading">Your search starts here</h2><p id="result-count"></p></div><p id="message" role="status" aria-live="polite"></p><div id="results"><div class="empty-state"><div class="empty-icon" aria-hidden="true">⌕</div><h3>A little direction goes a long way.</h3><p>Enter a condition, treatment, or location above.<br>We’ll help you explore the studies that match.</p><div class="examples"><span>Try a search:</span><button type="button" data-condition="multiple sclerosis">Multiple sclerosis ↗</button><button type="button" data-condition="Parkinson disease">Parkinson’s ↗</button><button type="button" data-condition="Alzheimer disease">Alzheimer’s disease ↗</button></div></div></div><button id="load-more" class="secondary" hidden>Load more studies ↓</button></section>
+    <details class="profile-panel" id="onboarding-panel"><summary>Make this workspace yours</summary>
+      <p class="workspace-note">A few questions to shape this around your work. Skip anything, pause, or start searching. Answers are saved to this shared Clinical workspace after you unlock; drafts stay on this browser. Share with Joe only when you choose.</p>
+      <p id="onboarding-progress"></p><div id="onboarding-question"></div>
+      <div class="workspace-actions"><button type="button" id="onboarding-back" class="secondary">Back</button><button type="button" id="onboarding-next">Save &amp; continue</button><button type="button" id="onboarding-skip" class="secondary">Skip</button><button type="button" id="onboarding-save-review" hidden>Save reviewed setup</button><button type="button" id="onboarding-pause" class="secondary">Continue later</button><button type="button" id="onboarding-search" class="secondary">Start searching</button><button type="button" id="onboarding-load" class="secondary" hidden>Reload shared answers</button></div><p id="onboarding-note" role="status"></p>
+    </details>
   </main>
   <footer><span>Clinical<span class="brand-dot">.</span> <small>Clarity for your next step.</small></span><p>Data provided by ClinicalTrials.gov. An independent search interface.<br>Recruiting patients does not confirm a study is accepting additional sites. Verify opportunities with the sponsor.</p></footer>
   <dialog id="study-dialog"><div class="dialog-top"><span class="eyebrow">STUDY DETAILS</span><button id="close-dialog" class="secondary" aria-label="Close study details">Close ×</button></div><div id="study-content"></div></dialog>
