@@ -93,3 +93,7 @@ Tests cover independent access, persistence across restart, duplicate submission
 ### Chat reliability and latency
 
 The browser requests streamed progress events and displays returned registry studies before AI summarization finishes. An AI summary failure preserves the search results with a factual fallback; other errors appear inside the conversation with the original message retained for retry. Each model call has a 30-second timeout; transport/API failures log only status and diagnostic codes, never credentials or conversation text. The default GPT-4.1 mini model omits reasoning configuration; reasoning settings are only sent to reasoning models. Profile output is null when no changes are proposed, reducing response size.
+
+### Contact discovery
+
+All recruitment statuses remain available for relationship discovery. Search results include published central study and site contacts, email links and user-reviewed outreach drafts. CSV exports and Grok/Claude handoffs include contact fields. Contacts are sourced from the registry, may be absent or outdated, and do not establish sponsor/CRO business development responsibility. No email is sent by the assistant; email links open the user’s email program.
