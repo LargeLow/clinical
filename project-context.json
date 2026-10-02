@@ -5,7 +5,7 @@
   "branch": "main",
   "renderServiceId": "srv-daulttg473hc73bohfk0",
   "renderWorkspaceId": "tea-d7sdga67r5hc739c49jg",
-  "purpose": "Nationwide clinical research business development for Nikki at Nira Medical: study discovery, published contacts, sponsor/CRO relationships, PI visibility and outreach drafts.",
+  "purpose": "Clinical research business development for Nikki at Tanner Clinic in Davis County, Utah: local study discovery, nationwide sponsor/CRO opportunities, published contacts, PI visibility and outreach drafts.",
   "preferences": [
     "ARFD = Analyze, Research, Report for Discussion. Discuss ARFD proposals before implementation.",
     "No corporate workspace integration. Provide Excel exports and manual Grok/Claude handoffs.",
@@ -27,7 +27,10 @@
     "Reported eligible ages on cards, CSV exports and handoffs",
     "Temporary assistant attachments: photos/screenshots, PDF, Office, CSV and text; 24-hour expiry",
     "Attachment actions and follow-up questions with filename references",
-    "US-site-only default for manual and AI searches; explicit all-countries option"
+    "US-site-only default for manual and AI searches; explicit all-countries option",
+    "Tanner Clinic sourced baseline and Davis County defaults",
+    "Davis County city-based site discovery with separate nationwide opportunities",
+    "Archived legacy Nira profiles and onboarding for review"
   ],
   "infrastructure": {
     "runtime": "Node",
@@ -46,5 +49,15 @@
   "planned": [
     "Reusable attachment library after temporary-file workflow",
     "HEIC and Outlook MSG conversion support"
-  ]
+  ],
+  "companyTransition": {
+    "company": "Tanner Clinic",
+    "territory": "Davis County, Utah",
+    "approved": "2026-10-01",
+    "contextVersion": "tanner-davis-v1",
+    "baseline": "public/company.mjs",
+    "previousCompany": "Nira Medical",
+    "savedPreferences": "Archive legacy company profiles and onboarding for review; do not treat them as active Tanner preferences. Preserve shortlists and feedback.",
+    "affiliates": "Utah Digestive Health is a published service relationship. No other affiliated companies confirmed."
+  }
 }

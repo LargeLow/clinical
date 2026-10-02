@@ -1,3 +1,4 @@
+import { companyContext, defaultProfile, baseline, isDavisLocation } from './company.mjs';
 const form = document.querySelector('#search-form');
 const results = document.querySelector('#results');
 const message = document.querySelector('#message');
@@ -35,7 +36,7 @@ function contactRow(c,id){
   const row=element('div',undefined,'contact-row');row.append(element('strong',c.name||'Name not reported'),element('small',[c.kind,c.role,c.facility].filter(Boolean).join(' · ')));
   if(c.email){const email=String(c.email).trim();if(/^[^\s@?&]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(email)){
     const link=element('a',email);link.href='mailto:'+encodeURIComponent(email);row.append(link);
-    const draft=element('a','Draft outreach email','secondary');draft.href=link.href+'?subject='+encodeURIComponent('Nira Medical — study site inquiry: '+id)+'&body='+encodeURIComponent('Hello '+(c.name||'study team')+',\n\nI work in clinical research business development at Nira Medical. I am reaching out about '+id+' to explore potential site opportunities or future collaboration. Could you direct me to the person responsible for site selection or feasibility?\n\nThank you,\nNikki\nNira Medical');row.append(draft);
+    const draft=element('a','Draft outreach email','secondary');draft.href=link.href+'?subject='+encodeURIComponent('Tanner Clinic — study site inquiry: '+id)+'&body='+encodeURIComponent('Hello '+(c.name||'study team')+',\n\nI work in clinical research business development at Tanner Clinic. I am reaching out about '+id+' to explore potential site opportunities or future collaboration. Could you direct me to the person responsible for site selection or feasibility?\n\nThank you,\nNikki\nTanner Clinic');row.append(draft);
   }else row.append(element('span',email));}
   if(c.phone){const phone=element('a','Phone: '+c.phone+(c.phoneExt?' ext. '+c.phoneExt:''));const digits=String(c.phone).replace(/[^0-9+]/g,'');if(digits)phone.href='tel:'+digits+(c.phoneExt?';ext='+String(c.phoneExt).replace(/\D/g,''):'');row.append(phone);}
   return row;
@@ -66,6 +67,7 @@ function card(study) {
   node.append(element('p',(p.conditionsModule?.conditions || []).slice(0,3).join(' · ') || 'Condition not reported','card-info'));
   const phases = p.designModule?.phases;
   node.append(element('p','Eligible ages: '+ageLabel(study),'card-info'));node.append(contactsPanel(study));
+  const localSites=(p.contactsLocationsModule?.locations||[]).filter(isDavisLocation);if(form.elements.scope.value==='davis'&&localSites.length)node.append(element('p','Davis County site: '+localSites.map(l=>[l.facility,l.city,'Utah'].filter(Boolean).join(', ')).join('; '),'card-info'));
   node.append(element('p','Sponsor: '+(p.sponsorCollaboratorsModule?.leadSponsor?.name || 'Not reported'),'card-info'));
   if (phases?.length) node.append(element('p',phases.map(friendly).join(' / '),'card-info'));
   const locations = p.contactsLocationsModule?.locations || [];
@@ -143,7 +145,21 @@ dialog.addEventListener('close',()=>{detailRequest++;});
 
 const profileKeys=['territory','clinics','indications','investigators','studyPreferences','workingPreferences'];
 const profileLabels={territory:'Territory / states',clinics:'Clinics',indications:'Indications',investigators:'Investigators',studyPreferences:'Study preferences',workingPreferences:'Working preferences'};
-const emptyProfile=()=>Object.fromEntries(profileKeys.map(key=>[key,'']));
+const emptyProfile=defaultProfile;
+let legacyBrowserContext;
+const previousContexts=new Map();
+function showPreviousContext(source,value){
+  if(!value)return;
+  const lines=profileKeys.filter(key=>value.profile?.[key]).map(key=>profileLabels[key]+': '+value.profile[key]);
+  const answers=value.onboarding?.answers||value.onboardingDraft?.answers||{};
+  for(const [key,answer] of Object.entries(answers))if(answer)lines.push('Earlier '+key+': '+answer);
+  if(!lines.length)return;
+  previousContexts.set(source,source+'\n'+lines.join('\n'));
+  document.querySelector('#previous-context').hidden=false;
+  document.querySelector('#previous-context-text').textContent=[...previousContexts.values()].join('\n\n');
+}
+document.addEventListener('clinical-legacy-context',e=>showPreviousContext('Shared workspace',e.detail));
+const baselineArea=document.querySelector('#company-baseline');baselineArea.append(element('p','Researched '+baseline.researched+'. '+baseline.researchAreas.join('; ')));for(const location of baseline.locations)baselineArea.append(element('p',location.name+' — '+location.address+', '+location.city+', Utah. Services: '+location.specialties.join(', ')));for(const [name,url] of Object.entries(baseline.sources)){const link=element('a',name+' source ↗');link.href=url;link.target='_blank';link.rel='noopener noreferrer';baselineArea.append(link,element('br'));}
 let onboardingContext={};
 document.addEventListener('clinical-onboarding-context',e=>{onboardingContext=e.detail;});
 let profile=emptyProfile(),proposedProfile=null,chatHistory=[],aiReady=false,aiUnlocked=false,chatBusy=false;
@@ -158,12 +174,12 @@ document.addEventListener('clinical-shared-profile',e=>{profile=Object.fromEntri
 function syncProfile(){for(const key of profileKeys) profileForm.elements[key].value=profile[key] || '';}
 function persist(){
   document.dispatchEvent(new CustomEvent('clinical-profile-saved',{detail:profile}));
-  try {if(remember.checked) localStorage.setItem('clinical-workspace-v1',JSON.stringify({profile,shortlist:[...shortlisted.values()]}));else localStorage.removeItem('clinical-workspace-v1');}
+  try {if(remember.checked) localStorage.setItem('clinical-workspace-v1',JSON.stringify({companyContext,legacyContext:legacyBrowserContext,profile,shortlist:[...shortlisted.values()]}));else localStorage.removeItem('clinical-workspace-v1');}
   catch {workspaceNote('Browser storage is unavailable or full. Download a brief to keep your work.');}
 }
 try {
   const saved=JSON.parse(localStorage.getItem('clinical-workspace-v1') || 'null');
-  if(saved){remember.checked=true;profile=Object.fromEntries(profileKeys.map(k=>[k,typeof saved.profile?.[k]==='string' ? saved.profile[k].slice(0,1500) : '']));for(const study of (Array.isArray(saved.shortlist) ? saved.shortlist.slice(0,50) : [])){const id=study?.protocolSection?.identificationModule?.nctId;if(/^NCT\d{8}$/.test(id)) shortlisted.set(id,study);}}
+  if(saved){remember.checked=true;legacyBrowserContext=saved.legacyContext||(saved.companyContext!==companyContext?{profile:saved.profile}:undefined);showPreviousContext('This browser',legacyBrowserContext);profile=saved.companyContext!==companyContext?defaultProfile():Object.fromEntries(profileKeys.map(k=>[k,typeof saved.profile?.[k]==='string' ? saved.profile[k].slice(0,1500) : '']));for(const study of (Array.isArray(saved.shortlist) ? saved.shortlist.slice(0,50) : [])){const id=study?.protocolSection?.identificationModule?.nctId;if(/^NCT\d{8}$/.test(id)) shortlisted.set(id,study);}}
 } catch {workspaceNote('Saved preferences could not be loaded. You can enter them again.');}
 syncProfile();
 function renderShortlist(){
@@ -177,7 +193,7 @@ profileForm.addEventListener('submit',event=>{event.preventDefault();profile=Obj
 remember.addEventListener('change',()=>{persist();workspaceNote(remember.checked ? 'Current preferences and shortlist will be remembered on this browser.' : 'Saved browser data removed; current work remains available for this visit.');});
 document.querySelector('#clear-workspace').addEventListener('click',async()=>{if(chatBusy||attachmentUploading)return;if(!(await removeAllAttachments()))return;profile=emptyProfile();shortlisted.clear();remember.checked=false;chatHistory=[];proposedProfile=null;document.querySelector('#profile-suggestion').hidden=true;chatLog.replaceChildren();greeting();syncProfile();renderShortlist();persist();workspaceNote('Preferences, shortlist, and conversation cleared.');});
 function bubble(role,text){const b=element('div',undefined,'chat-bubble'+(role==='user'?' user':''));b.append(element('strong',role==='user'?'You':'Research assistant'),element('span',text));chatLog.append(b);chatLog.scrollTop=chatLog.scrollHeight;return b;}
-function greeting(){bubble('assistant','Hi Nikki. I can help with study opportunities, sponsor/CRO relationships, and PI visibility. Joe confirmed you cover business development nationwide for Nira. Which clinics or priorities would you like to focus on today? You can also skip this and tell me what you want to work on today.');}
+function greeting(){bubble('assistant','Hi Nikki. I can help with study opportunities, sponsor/CRO relationships, and PI visibility. Your clinic focus is Tanner Clinic in Davis County, Utah. I can also find nationwide sponsor opportunities for your local clinics. Which specialty or priority should we work on today? You can also skip this and tell me what you want to work on today.');}
 greeting();
 async function assistantRequest(path,value,onEvent){
   const r=await fetch('/api/assistant/'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Clinical-Request':'1',...(onEvent?{Accept:'application/x-ndjson'}:{})},body:JSON.stringify(value),signal:AbortSignal.timeout(220000)});
@@ -225,7 +241,7 @@ document.querySelector('#dismiss-profile').addEventListener('click',()=>{propose
 function selectedStudies(){return shortlisted.size ? [...shortlisted.values()] : currentStudies;}
 function brief(provider='Research assistant'){
   const studies=selectedStudies();
-  return 'Clinical research business development handoff for '+provider+'\nPrepared '+new Date().toISOString()+'\n\nNikki works for Nira Medical. Goals: study opportunities, additional trial sites, sponsor/CRO relationships and PI platform visibility. Corporate workspace is not connected.\n\nCONFIRMED PREFERENCES\n'+profileKeys.map(k=>profileLabels[k]+': '+(profile[k] || 'Unknown—ask Nikki')).join('\n')+'\n\nSTUDIES ('+(shortlisted.size?'shortlist':'current results')+')\n'+studies.map(s=>{const p=s.protocolSection;const id=p.identificationModule.nctId;return [id+' — '+p.identificationModule.briefTitle,'Sponsor: '+(p.sponsorCollaboratorsModule?.leadSponsor?.name || 'Not reported'),'Status: '+friendly(p.statusModule?.overallStatus),'Eligible ages: '+ageLabel(s),'Phase: '+(p.designModule?.phases || []).map(friendly).join(' / '),'Updated: '+(p.statusModule?.lastUpdatePostDateStruct?.date || 'Not reported'),'Published contacts: '+(studyContacts(s).map(c=>[c.kind,c.name,c.role,c.email,c.phone,c.facility].filter(Boolean).join(' · ')).join('; ')||'Not reported'),'Source: https://clinicaltrials.gov/study/'+id].join('\n');}).join('\n\n')+'\n\nREQUEST\n'+(document.querySelector('#handoff-question').value.trim() || 'Assess these studies for potential clinic fit. Identify missing feasibility information and useful next steps. Ask relevant clarifying questions.')+'\n\nUse the linked records as evidence. Distinguish facts, inference and unknowns. Recruiting patients does not confirm a sponsor is accepting additional sites. Do not invent investigator credentials, clinic capacity or submission confirmations.\n';
+  return 'Clinical research business development handoff for '+provider+'\nPrepared '+new Date().toISOString()+'\n\nNikki works for Tanner Clinic. Clinic territory: Davis County, Utah; sponsor/CRO opportunity discovery can be nationwide. Public baseline: https://tannerclinic.com/locations/ and https://tannerclinic.com/clinical-trials/ (researched October 1, 2026; verify changes). Published specialties are not confirmed research capacity. Goals: study opportunities, additional trial sites, sponsor/CRO relationships and PI platform visibility. Corporate workspace is not connected.\n\nCONFIRMED PREFERENCES\n'+profileKeys.map(k=>profileLabels[k]+': '+(profile[k] || 'Unknown—ask Nikki')).join('\n')+'\n\nSTUDIES ('+(shortlisted.size?'shortlist':'current results')+')\n'+studies.map(s=>{const p=s.protocolSection;const id=p.identificationModule.nctId;return [id+' — '+p.identificationModule.briefTitle,'Sponsor: '+(p.sponsorCollaboratorsModule?.leadSponsor?.name || 'Not reported'),'Status: '+friendly(p.statusModule?.overallStatus),'Eligible ages: '+ageLabel(s),'Phase: '+(p.designModule?.phases || []).map(friendly).join(' / '),'Updated: '+(p.statusModule?.lastUpdatePostDateStruct?.date || 'Not reported'),'Published contacts: '+(studyContacts(s).map(c=>[c.kind,c.name,c.role,c.email,c.phone,c.facility].filter(Boolean).join(' · ')).join('; ')||'Not reported'),'Source: https://clinicaltrials.gov/study/'+id].join('\n');}).join('\n\n')+'\n\nREQUEST\n'+(document.querySelector('#handoff-question').value.trim() || 'Assess these studies for potential clinic fit. Identify missing feasibility information and useful next steps. Ask relevant clarifying questions.')+'\n\nUse the linked records as evidence. Distinguish facts, inference and unknowns. Recruiting patients does not confirm a sponsor is accepting additional sites. Do not invent investigator credentials, clinic capacity or submission confirmations.\n';
 }
 function download(name,text,type='text/plain'){const url=URL.createObjectURL(new Blob([text],{type}));const link=element('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 async function copyBrief(provider){try{await navigator.clipboard.writeText(brief(provider));workspaceNote('Handoff copied. Paste it into '+provider+' when ready.');}catch{download('clinical-handoff-'+provider.toLowerCase()+'.txt',brief(provider));workspaceNote('Clipboard unavailable; downloaded the handoff instead.');}}
@@ -245,10 +261,10 @@ function selectStudy(study){
   document.querySelector('#study-context-label').textContent='Discussing '+selectedStudyId+' — '+study.protocolSection.identificationModule.briefTitle;
   document.querySelector('#study-context').hidden=false;setWorkingView('assistant');
   document.querySelectorAll('.study-card').forEach(c=>c.classList.toggle('selected-study',c.querySelector('.card-meta a')?.textContent===selectedStudyId));
-  chatInput.value='Help me assess '+selectedStudyId+' for Nira and identify the published contacts and next outreach steps.';
+  chatInput.value='Help me assess '+selectedStudyId+' for Tanner Clinic and identify the published contacts and next outreach steps.';
   chatInput.focus({preventScroll:true});
 }
-function updateSearchSummary(){const values=new FormData(form);const chips=[values.get('usOnly')==='false'?'All countries':'US sites only'];for(const k of ['term','condition','treatment','location','sponsor','status','phase','studyType']){const value=values.getAll(k).filter(Boolean).map(v=>['status','phase','studyType'].includes(k)?v.split(',').map(friendly).join(', '):v).join(', ');if(value)chips.push(value);}const a=values.get('age'),lo=values.get('ageMin'),hi=values.get('ageMax');if(a)chips.push('Age '+a);else if(lo||hi)chips.push('Ages '+(lo||'0')+'–'+(hi||'any upper age')+' (overlap)');if(!values.getAll('status').some(Boolean))chips.push('All statuses');if(!values.getAll('phase').some(Boolean))chips.push('Any phase');document.querySelector('#filter-summary').textContent=chips.join(' · ');}
+function updateSearchSummary(){const values=new FormData(form);const chips=[values.get('scope')==='davis'?'Davis County sites (city match)':'Nationwide opportunities',values.get('usOnly')==='false'?'All countries':'US sites only'];for(const k of ['term','condition','treatment','location','sponsor','status','phase','studyType']){const value=values.getAll(k).filter(Boolean).map(v=>['status','phase','studyType'].includes(k)?v.split(',').map(friendly).join(', '):v).join(', ');if(value)chips.push(value);}const a=values.get('age'),lo=values.get('ageMin'),hi=values.get('ageMax');if(a)chips.push('Age '+a);else if(lo||hi)chips.push('Ages '+(lo||'0')+'–'+(hi||'any upper age')+' (overlap)');if(!values.getAll('status').some(Boolean))chips.push('All statuses');if(!values.getAll('phase').some(Boolean))chips.push('Any phase');document.querySelector('#filter-summary').textContent=chips.join(' · ');}
 form.addEventListener('change',updateSearchSummary);form.addEventListener('input',updateSearchSummary);
 document.querySelector('#clear-study-context').addEventListener('click',clearStudyContext);
 document.querySelectorAll('[data-view]').forEach(b=>b.addEventListener('click',()=>setWorkingView(b.dataset.view)));

@@ -2,10 +2,11 @@ import { mkdir, readFile, open, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID, randomBytes, createHmac, createHash, timingSafeEqual } from 'node:crypto';
 import { cleanProfile } from './assistant.mjs';
+import { companyContext, defaultProfile, migrateWorkspace } from './public/company.mjs';
 
 export const questions = [
   {id:'goals',title:'What would you most like help with?',hint:'Finding studies, adding sites, sponsor/CRO relationships, or PI visibility.'},
-  {id:'territory',title:'With nationwide coverage, which clinics or regions should we prioritize?',hint:'Joe confirmed you cover business development across the United States. Add any current focus, or leave blank for nationwide coverage.'},
+  {id:'territory',title:'Which Tanner Clinic locations in Davis County should we prioritize?',hint:'Your clinic territory is Davis County, Utah. Sponsor/CRO discovery can still be nationwide. Add other locations only if they belong in your work.'},
   {id:'fit',title:'Which indications, investigators and clinic capabilities are priorities?',hint:'Research interests, equipment, experience and capacity you can confirm.'},
   {id:'workflow',title:'Walk through your last study opportunity. Where did you spend the most time?',hint:'From discovering a study through contacts and feasibility.'},
   {id:'pipeline',title:'How do you track contacts and follow-ups today?',hint:'What would make an opportunity shortlist useful?'},
@@ -15,7 +16,7 @@ export const questions = [
   {id:'priorities',title:'What should Joe build first, and what would success look like?',hint:'Describe one improvement that would save you time.'}
 ];
 const stages=['New','Reviewing','Planned','Shipped'];
-const initial=()=>({version:1,onboarding:{answers:{},step:0,completed:false},profile:cleanProfile(),suggestions:[]});
+const initial=()=>({version:1,companyContext,onboarding:{answers:{},step:0,completed:false},profile:defaultProfile(),suggestions:[]});
 function fail(status,message){throw Object.assign(new Error(message),{status});}
 const text=(v,n=3000)=>typeof v==='string'?v.trim().slice(0,n):'';
 async function body(req){let size=0,chunks=[];for await(const chunk of req){size+=chunk.length;if(size>50000)fail(413,'This submission is too large.');chunks.push(chunk);}try{return JSON.parse(Buffer.concat(chunks).toString());}catch{fail(400,'Send a valid submission.');}}
@@ -57,10 +58,10 @@ export function createWorkspace({env=process.env,fetcher=fetch,authenticated}={}
     if(route==='owner-logout' && req.method==='POST'){res.setHeader('Set-Cookie','clinical_owner=; HttpOnly; Secure; SameSite=Strict; Path=/api/workspace; Max-Age=0');json(200,{ok:true});return true;}
     const isOwner=owner(req);
     if(route.startsWith('owner-')?!isOwner:!authenticated(req))fail(401,'Unlock '+(route.startsWith('owner-')?'the owner inbox':'the assistant')+' first.');
-    if(route==='load' && req.method==='GET'){const d=await store.read();json(200,{onboarding:d.onboarding,profile:d.profile,suggestions:d.suggestions.map(publicItem)});return true;}
+    if(route==='load' && req.method==='GET'){let d=await store.read();if(d.companyContext!==companyContext)d=await store.update(data=>{Object.assign(data,migrateWorkspace(data));return data;});json(200,{companyContext,legacyContext:d.legacyContext,onboarding:d.onboarding,profile:d.profile,suggestions:d.suggestions.map(publicItem)});return true;}
     if(route==='save' && req.method==='POST'){
       const v=await body(req);const answers=Object.fromEntries(questions.map(q=>[q.id,text(v.answers?.[q.id])]));const step=Math.max(0,Math.min(questions.length,Math.trunc(Number(v.step)||0)));
-      await store.update(d=>{d.onboarding={answers,step,completed:v.completed===true};if(v.profile)d.profile=cleanProfile(v.profile);});json(200,{ok:true});return true;
+      await store.update(d=>{Object.assign(d,migrateWorkspace(d));d.onboarding={answers,step,completed:v.completed===true};if(v.profile)d.profile=cleanProfile(v.profile);});json(200,{ok:true});return true;
     }
     if(route==='feedback' && req.method==='POST'){
       const v=await body(req);const message=text(v.message);if(!message)fail(400,'Describe your suggestion before sending.');if(!['Normal','High','Low'].includes(v.priority))fail(400,'Choose a valid priority.');if(!/^[0-9a-f-]{36}$/i.test(v.id||''))fail(400,'Invalid submission identifier.');

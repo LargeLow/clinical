@@ -1,14 +1,15 @@
+import { companyContext, defaultProfile } from './company.mjs';
 (() => {
   const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(cls)n.className=cls;return n;};
   const by=id=>document.getElementById(id);
   let questions=[],answers={},step=0,completed=false,loaded=false,sending=false,feedbackId=null,reviewedSubmission=null,navigating=false,items=[];
   const profileKeys=['territory','clinics','indications','investigators','studyPreferences','workingPreferences'];
   const labels=['Territory / states','Clinics you cover','Priority indications','Investigators / PI priorities','Study preferences / phases','Working preferences'];
-  let sharedProfile={};
+  let sharedProfile=defaultProfile();
   const note=text=>by('onboarding-note').textContent=text;
   async function api(path,value){const r=await fetch('/api/workspace/'+path,{...(value!==undefined?{method:'POST',headers:{'Content-Type':'application/json','X-Clinical-Request':'1'},body:JSON.stringify(value)}:{}),signal:AbortSignal.timeout(25000)});const d=await r.json();if(!r.ok)throw Error(d.error||'Please try again.');return d;}
-  function draft(){try{const v=JSON.parse(localStorage.getItem('clinical-onboarding-draft')||'null');if(v){answers=v.answers||{};step=v.step||0;completed=v.completed===true;}}catch{}}
-  function keepDraft(){try{localStorage.setItem('clinical-onboarding-draft',JSON.stringify({answers,step,completed}));}catch{}}
+  function draft(){try{const v=JSON.parse(localStorage.getItem('clinical-onboarding-draft')||'null');if(v){if(v.companyContext!==companyContext){localStorage.setItem('clinical-onboarding-nira-archive',JSON.stringify(v));document.dispatchEvent(new CustomEvent('clinical-legacy-context',{detail:{onboardingDraft:v}}));}else{answers=v.answers||{};step=v.step||0;completed=v.completed===true;}}}catch{}}
+  function keepDraft(){try{localStorage.setItem('clinical-onboarding-draft',JSON.stringify({companyContext,answers,step,completed}));}catch{}}
   async function save(profile){keepDraft();await api('save',{answers,step,completed,...(profile?{profile}:{})});document.dispatchEvent(new CustomEvent('clinical-onboarding-context',{detail:answers}));}
   function capture(){if(step<questions.length)answers[questions[step].id]=by('onboarding-answer')?.value.trim()||'';}
   function render(){
@@ -26,7 +27,7 @@
     }
   }
   async function load(){try{
-    const d=await api('load');loaded=true;sharedProfile=d.profile||{};items=d.suggestions||[];
+    const d=await api('load');loaded=true;sharedProfile=d.profile||defaultProfile();items=d.suggestions||[];if(d.legacyContext)document.dispatchEvent(new CustomEvent('clinical-legacy-context',{detail:d.legacyContext}));
     // Keep an unfinished local draft available; explicit resume avoids silent overwrites.
     const local=Object.values(answers).some(Boolean);
     if(!local){answers=d.onboarding.answers||{};step=d.onboarding.step||0;completed=d.onboarding.completed;}

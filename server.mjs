@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { davisCities, prioritizeDavisSites } from './public/company.mjs';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createAssistant } from './assistant.mjs';
@@ -7,7 +8,7 @@ import { createAttachments } from './attachments.mjs';
 
 const apiBase = 'https://clinicaltrials.gov/api/v2';
 const statuses = new Set(['RECRUITING', 'NOT_YET_RECRUITING', 'ACTIVE_NOT_RECRUITING', 'COMPLETED', 'ENROLLING_BY_INVITATION', 'TERMINATED', 'WITHDRAWN', 'SUSPENDED', 'UNKNOWN']);
-const staticFiles = new Map([['/', ['index.html', 'text/html']], ['/app.js', ['app.js', 'text/javascript']], ['/style.css', ['style.css', 'text/css']], ['/workspace.js',['workspace.js','text/javascript']]]);
+const staticFiles = new Map([['/', ['index.html', 'text/html']], ['/app.js', ['app.js', 'text/javascript']], ['/style.css', ['style.css', 'text/css']], ['/workspace.js',['workspace.js','text/javascript']], ['/company.mjs',['company.mjs','text/javascript']]]);
 const cache = new Map();
 
 export function searchParameters(input) {
@@ -24,6 +25,9 @@ export function searchParameters(input) {
     params.set('filter.overallStatus', selectedStatuses.join(','));
   }
   const filters=[];
+  const scope=input.get('scope')||'nationwide';
+  if(!['davis','nationwide'].includes(scope))throw new Error('Choose Davis County or nationwide discovery.');
+  if(scope==='davis')filters.push('SEARCH[Location](AREA[LocationCountry]"United States" AND AREA[LocationState]Utah AND ('+davisCities.map(city=>'AREA[LocationCity]"'+city+'"').join(' OR ')+'))');
   const usOnly=input.get('usOnly')!=='false';
   if(usOnly)filters.push('AREA[LocationCountry]"United States"');
   const phases=values('phase');
@@ -69,7 +73,8 @@ async function upstream(path, fetcher) {
 }
 
 export function createServer(fetcher = fetch, env = process.env) {
-  const assistant=createAssistant({fetcher,env,getStudy:async id=>upstream('/studies/'+id,fetcher),search:async input=>upstream('/studies?'+searchParameters(input),fetcher)});
+  const studySearch=async input=>{const data=await upstream('/studies?'+searchParameters(input),fetcher);return input.get('scope')==='davis'?{...data,studies:(data.studies||[]).map(prioritizeDavisSites)}:data;};
+  const assistant=createAssistant({fetcher,env,getStudy:async id=>upstream('/studies/'+id,fetcher),search:studySearch});
   const attachments=createAttachments({env,authenticated:assistant.authenticated});
   assistant.setAttachments(attachments);
   const workspace=createWorkspace({env,fetcher,authenticated:assistant.authenticated});
@@ -91,7 +96,7 @@ export function createServer(fetcher = fetch, env = process.env) {
       if (url.pathname === '/api/studies') {
         let params;
         try {params = searchParameters(url.searchParams);} catch (error) {return json(400,{error:error.message});}
-        return json(200,await upstream('/studies?'+params,fetcher));
+        return json(200,await studySearch(url.searchParams));
       }
       if (url.pathname.startsWith('/api/studies/')) {
         const id = url.pathname.slice('/api/studies/'.length);
