@@ -24,7 +24,10 @@
     "Shared onboarding storage and Resend feedback",
     "Specific participant age and overlapping age-range registry filters",
     "Plain-language study search and keyword/acronym terms",
-    "Reported eligible ages on cards, CSV exports and handoffs"
+    "Reported eligible ages on cards, CSV exports and handoffs",
+    "Temporary assistant attachments: photos/screenshots, PDF, Office, CSV and text; 24-hour expiry",
+    "Attachment actions and follow-up questions with filename references",
+    "US-site-only default for manual and AI searches; explicit all-countries option"
   ],
   "infrastructure": {
     "runtime": "Node",
@@ -38,5 +41,10 @@
   "appProjectStatus": "Clinical is registered in the app at this canonical folder. GitHub origin and full main history are synchronized; code changes deploy automatically from main.",
   "canonicalProjectFolder": "/Users/applelab/Documents/ChatGPT/Clinical",
   "backupFolder": "/Users/applelab/Documents/Codex/Clinical",
-  "latestDeployedCommit": "efd0363d334d2136b6a407d2f268a5cdd0189a50"
+  "latestDeployedCommit": "01db6ec2a1e6d57cb3bf352b1bca188d34a16a27",
+  "assistantModel": "gpt-5.6-terra",
+  "planned": [
+    "Reusable attachment library after temporary-file workflow",
+    "HEIC and Outlook MSG conversion support"
+  ]
 }

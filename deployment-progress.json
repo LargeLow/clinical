@@ -91,10 +91,10 @@
     "resultsPreservedDuringDiscussion": true
   },
   "latest_deployment": {
-    "commit": "efd0363d334d2136b6a407d2f268a5cdd0189a50",
-    "deploy": "dep-davfd5ojo6nc738i1bmg",
+    "commit": "01db6ec2a1e6d57cb3bf352b1bca188d34a16a27",
+    "deploy": "dep-davft3gjo6nc738igvm0",
     "status": "live",
-    "change": "Participant age filters, study terms, and plain-language search"
+    "change": "Temporary business attachments, GPT-5.6 Terra, and US-only defaults"
   },
   "search_cleanup": {
     "commit": "21f34a3c9b22f662960919847a72191c4815b6c1",
@@ -109,5 +109,37 @@
     "realAiSearchVerified": true,
     "realAiTest": "MS fatigue, United States, phases 2/3, recruiting/not yet recruiting, ages 50\u201375; 11 results and matching filters",
     "proof": "screenshots/clinical-age-search.png"
+  },
+  "temporary_attachments": {
+    "live": true,
+    "testsPassed": 16,
+    "buildPassed": true,
+    "realApiFormatsVerified": [
+      "PDF",
+      "DOCX",
+      "XLSX",
+      "CSV",
+      "TXT",
+      "JPEG",
+      "PNG"
+    ],
+    "combinedDocumentSeconds": 4.199,
+    "jpegSeconds": 2.168,
+    "jpegFollowupSeconds": 1.864,
+    "pastedPngSeconds": 2.65,
+    "clipboardPasteVerified": true,
+    "expiryHours": 24,
+    "storage": "/var/data/clinical-attachments",
+    "model": "gpt-5.6-terra",
+    "reasoningEffort": "none",
+    "USRegistrySearchVerified": true,
+    "liveUiVerified": true,
+    "proof": "screenshots/clinical-attachments-live.jpg",
+    "limitations": [
+      "Native spreadsheet input reads first 1000 rows per sheet",
+      "Office input extracts text; export PDF for embedded charts/images",
+      "Provider request limit remains; no arbitrary product file-count limit"
+    ],
+    "libraryPlannedLater": true
   }
 }
