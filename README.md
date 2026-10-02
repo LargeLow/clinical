@@ -1,6 +1,6 @@
 # Clinical
 
-A simple clinical study search interface backed by the public ClinicalTrials.gov v2 API. Search conditions, treatments, locations, and recruitment status; browse paginated results and open study details with eligibility criteria and contacts.
+A simple clinical study search interface backed by the public ClinicalTrials.gov v2 API. Search study terms, conditions, treatments, locations, participant ages, and recruitment status; browse paginated results and open study details with eligibility criteria and contacts.
 
 ## Run locally
 
@@ -103,3 +103,10 @@ All recruitment statuses remain available for relationship discovery. Search res
 Desktop places a bounded, sticky assistant beside a single column of study cards. Mobile uses Studies/Assistant buttons with independent scroll positions. Shared filters summarize the current criteria and collapse after successful searches; manual filters apply together on submission. Preferences, onboarding and feedback remain below the working area. The shortlist opens from a count button, and Excel export is accessible from the toolbar.
 
 Cards link their title, NCT ID and source action directly to ClinicalTrials.gov. The primary published contact is visible, with email and phone links; additional contacts expand on demand. “Ask about this study” selects the record and prepares an editable question. On send, the server fetches that NCT record as assistant evidence instead of trusting client-supplied contact details. Clear study returns to general discussion. Current filters accompany questions so refinements can preserve the user's criteria. Outreach links only prepare drafts in the user's email application.
+
+
+## Age and natural study search
+
+Use “What studies are you looking for?” for requests such as “MS fatigue studies in the US, phase 2 or 3, recruiting or not yet recruiting, ages 50–75.” Unlock the assistant first. The assistant expands clear neurological abbreviations, applies the interpreted criteria to the shared filters, and fetches registry results. Review those filters before relying on the interpretation. Manual “Study terms” searches keywords and acronyms across the registry's basic search areas without AI.
+
+Participant age supports a specific age or an overlapping range, in years (0–120, including decimals). A range matches studies accepting any age within that range, rather than requiring the entire range to be eligible. Blank range bounds are open-ended. Registry-side age filtering preserves pagination, includes one-sided reported limits, and excludes records with neither limit reported. Reported age limits appear on result cards, Excel exports, and handoffs. Other eligibility criteria still require review in the source study.

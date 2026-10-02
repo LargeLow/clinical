@@ -106,3 +106,25 @@ test('selected-study discussion fetches registry evidence and carries shared fil
   const post=(path,body,cookie)=>fetch(base+'/api/assistant/'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Clinical-Request':'1',...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)});
   try{const cookie=(await post('login',{password:env.CLINICAL_ACCESS_PASSWORD})).headers.get('set-cookie').split(';')[0];const response=await post('chat',{message:'Draft outreach for this study',studyId:'NCT99999999',filters:{phase:'PHASE2,PHASE3'}},cookie);assert.equal(response.status,200);const data=await response.json();assert.equal(data.data,null);assert.match(data.reply,/verified-contact/);assert.equal(aiCalls,1);assert.ok(selectedFetched);const invalid=await post('chat',{message:'Review',studyId:'invalid'},cookie);assert.equal(invalid.status,400);assert.equal(aiCalls,1);}finally{await new Promise(r=>server.close(r));}
 });
+
+test('study keywords and participant-age filters preserve pagination and reject invalid ranges',()=>{
+  const specific=searchParameters(new URLSearchParams({term:'remyelination',age:'65',pageToken:'next'}));
+  assert.equal(specific.get('query.term'),'remyelination');assert.equal(specific.get('pageToken'),'next');assert.match(specific.get('filter.advanced'),/MinimumAge\]RANGE\[MIN,65 years\]/);assert.match(specific.get('filter.advanced'),/MaximumAge\]RANGE\[65 years,MAX\]/);assert.match(specific.get('fields'),/MinimumAge,MaximumAge/);
+  const range=searchParameters(new URLSearchParams({condition:'multiple sclerosis',ageMin:'50',ageMax:'75',phase:'PHASE2,PHASE3'}));
+  assert.match(range.get('filter.advanced'),/MinimumAge\]RANGE\[MIN,75 years\]/);assert.match(range.get('filter.advanced'),/MaximumAge\]RANGE\[50 years,MAX\]/);assert.match(range.get('filter.advanced'),/NOT AREA\[MaximumAge\]/);assert.match(range.get('filter.advanced'),/Phase/);
+  for(const value of ['-1','121','65 years','NaN','Infinity'])assert.throws(()=>searchParameters(new URLSearchParams({age:value})));
+  assert.throws(()=>searchParameters(new URLSearchParams({ageMin:'75',ageMax:'50'})));
+  assert.throws(()=>searchParameters(new URLSearchParams({age:'65',ageMin:'50'})));
+  assert.throws(()=>searchParameters(new URLSearchParams({term:'a'.repeat(251)})));
+  assert.ok(searchParameters(new URLSearchParams({ageMin:'0.5'})).has('filter.advanced'));
+});
+
+test('assistant translates plain-language age and study-term searches into registry filters',async()=>{
+  const env={OPENAI_API_KEY:'mock',CLINICAL_ACCESS_PASSWORD:'test-password-long-enough'};let aiCalls=0,query='';
+  const server=createServer(async(url,options)=>{
+    if(url.includes('openai.com')){const payload=JSON.parse(options.body);assert.ok(payload.text.format.schema.properties.search.anyOf[1].required.includes('ageMin'));aiCalls++;return Response.json({output:[{content:[{type:'output_text',text:JSON.stringify({reply:aiCalls===1?'Searching.':'Found MS studies with matching reported ages.',profile:null,search:aiCalls===1?{term:'fatigue',condition:'multiple sclerosis',age:'',ageMin:'50',ageMax:'75',location:'United States',status:'',sponsor:'',phase:'',studyType:'',treatment:''}:null})}]}]});}
+    query=url;return Response.json({totalCount:1,studies:[{protocolSection:{identificationModule:{nctId:'NCT88888888',briefTitle:'Fatigue study'},eligibilityModule:{minimumAge:'18 Years',maximumAge:'65 Years'}}}]});
+  },env);await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
+  const post=(path,body,cookie)=>fetch(base+'/api/assistant/'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Clinical-Request':'1',...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)});
+  try{const cookie=(await post('login',{password:env.CLINICAL_ACCESS_PASSWORD})).headers.get('set-cookie').split(';')[0];const r=await post('chat',{message:'Find MS fatigue studies in the US for ages 50–75'},cookie);assert.equal(r.status,200);const data=await r.json();assert.equal(data.query.ageMin,'50');assert.equal(data.data.totalCount,1);const parsed=new URL(query);assert.equal(parsed.searchParams.get('query.term'),'fatigue');assert.match(parsed.searchParams.get('filter.advanced'),/75 years/);}finally{await new Promise(r=>server.close(r));}
+});

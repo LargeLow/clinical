@@ -11,7 +11,7 @@ const cache = new Map();
 
 export function searchParameters(input) {
   const params = new URLSearchParams({format:'json', pageSize:'20', countTotal:'true', sort:'@relevance'});
-  for (const [key, target] of [['condition','query.cond'], ['treatment','query.intr'], ['location','query.locn'], ['sponsor','query.spons']]) {
+  for (const [key, target] of [['term','query.term'], ['condition','query.cond'], ['treatment','query.intr'], ['location','query.locn'], ['sponsor','query.spons']]) {
     const value = (input.get(key) || '').trim();
     if (value.length > 250) throw new Error('Search terms must be 250 characters or fewer.');
     if (value) params.set(target, value);
@@ -27,15 +27,26 @@ export function searchParameters(input) {
   if(phases.length) {if(phases.some(v=>!['EARLY_PHASE1','PHASE1','PHASE2','PHASE3','PHASE4','NA'].includes(v))) throw new Error('Choose valid study phases.');filters.push(phases.length===1?'AREA[Phase]'+phases[0]:'('+phases.map(v=>'AREA[Phase]'+v).join(' OR ')+')');}
   const type=input.get('studyType');
   if(type) {if(!['INTERVENTIONAL','OBSERVATIONAL'].includes(type)) throw new Error('Choose a valid study type.');filters.push('AREA[StudyType]'+type);}
+  const ageValue=key=>{const value=(input.get(key)||'').trim();if(!value)return null;if(!/^\d+(?:\.\d+)?$/.test(value)||!Number.isFinite(Number(value))||Number(value)>120)throw new Error('Enter an age from 0 to 120 years.');return Number(value);};
+  const age=ageValue('age'),ageMin=ageValue('ageMin'),ageMax=ageValue('ageMax');
+  if(age!==null&&(ageMin!==null||ageMax!==null))throw new Error('Choose a specific age or an age range, not both.');
+  if(ageMin!==null&&ageMax!==null&&ageMin>ageMax)throw new Error('The youngest age must not exceed the oldest age.');
+  const lower=age??ageMin,upper=age??ageMax;
+  if(lower!==null||upper!==null){
+    // Match overlap in the registry, including one-sided age limits but excluding records with neither limit reported.
+    if(upper!==null)filters.push('(AREA[MinimumAge]RANGE[MIN,'+upper+' years] OR NOT AREA[MinimumAge]RANGE[MIN,MAX])');
+    if(lower!==null)filters.push('(AREA[MaximumAge]RANGE['+lower+' years,MAX] OR NOT AREA[MaximumAge]RANGE[MIN,MAX])');
+    filters.push('(AREA[MinimumAge]RANGE[MIN,MAX] OR AREA[MaximumAge]RANGE[MIN,MAX])');
+  }
   if(filters.length) params.set('filter.advanced',filters.join(' AND '));
-  if (!['query.cond','query.intr','query.locn','query.spons','filter.overallStatus','filter.advanced'].some(key => params.has(key))) throw new Error('Enter a condition, sponsor, treatment, location, or study filter.');
+  if (!['query.term','query.cond','query.intr','query.locn','query.spons','filter.overallStatus','filter.advanced'].some(key => params.has(key))) throw new Error('Enter a condition, sponsor, treatment, location, or study filter.');
   const token = input.get('pageToken');
   if (token) {
     if (token.length > 10000) throw new Error('Invalid page token.');
     params.set('pageToken',token);
     params.delete('countTotal');
   }
-  params.set('fields', 'NCTId,BriefTitle,OverallStatus,BriefSummary,Condition,Phase,StudyType,LeadSponsorName,LeadSponsorClass,InterventionName,EnrollmentCount,StartDate,LocationFacility,LocationCity,LocationState,LocationCountry,CentralContactName,CentralContactRole,CentralContactPhone,CentralContactPhoneExt,CentralContactEMail,LocationContactName,LocationContactRole,LocationContactPhone,LocationContactPhoneExt,LocationContactEMail,LastUpdatePostDate');
+  params.set('fields', 'NCTId,BriefTitle,OverallStatus,BriefSummary,Condition,Phase,StudyType,LeadSponsorName,LeadSponsorClass,InterventionName,EnrollmentCount,StartDate,LocationFacility,LocationCity,LocationState,LocationCountry,CentralContactName,CentralContactRole,CentralContactPhone,CentralContactPhoneExt,CentralContactEMail,LocationContactName,LocationContactRole,LocationContactPhone,LocationContactPhoneExt,LocationContactEMail,LastUpdatePostDate,MinimumAge,MaximumAge,StdAge');
   return params;
 }
 
