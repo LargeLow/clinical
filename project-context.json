@@ -21,7 +21,10 @@
     "Primary contacts, mailto/tel links and user-reviewed outreach drafts",
     "Direct ClinicalTrials.gov links without shortlisting",
     "Shortlist dialog and Excel export",
-    "Shared onboarding storage and Resend feedback"
+    "Shared onboarding storage and Resend feedback",
+    "Specific participant age and overlapping age-range registry filters",
+    "Plain-language study search and keyword/acronym terms",
+    "Reported eligible ages on cards, CSV exports and handoffs"
   ],
   "infrastructure": {
     "runtime": "Node",
@@ -32,8 +35,8 @@
   },
   "credentialHandling": "Runtime secrets remain in existing secure configuration; none copied to this project folder.",
   "sourceWorkspace": "/Users/applelab/Documents/ChatGPT/Clinical",
-  "appProjectStatus": "Clinical is registered in the app at this canonical folder. GitHub origin and full main history have been fetched. Website files exactly match the latest deployed commit.",
+  "appProjectStatus": "Clinical is registered in the app at this canonical folder. GitHub origin and full main history are synchronized; code changes deploy automatically from main.",
   "canonicalProjectFolder": "/Users/applelab/Documents/ChatGPT/Clinical",
   "backupFolder": "/Users/applelab/Documents/Codex/Clinical",
-  "latestDeployedCommit": "3466dd04fad3b20d72d15b2266afcf1a8a2b54a8"
+  "latestDeployedCommit": "efd0363d334d2136b6a407d2f268a5cdd0189a50"
 }

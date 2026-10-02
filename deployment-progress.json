@@ -91,14 +91,23 @@
     "resultsPreservedDuringDiscussion": true
   },
   "latest_deployment": {
-    "commit": "3466dd04fad3b20d72d15b2266afcf1a8a2b54a8",
-    "deploy": "dep-dausgj7f3r2c7388akf0",
+    "commit": "efd0363d334d2136b6a407d2f268a5cdd0189a50",
+    "deploy": "dep-davfd5ojo6nc738i1bmg",
     "status": "live",
-    "change": "Consistent vertical spacing"
+    "change": "Participant age filters, study terms, and plain-language search"
   },
   "search_cleanup": {
     "commit": "21f34a3c9b22f662960919847a72191c4815b6c1",
     "status": "live",
     "change": "Removed redundant welcome box, heading, and example searches"
+  },
+  "age_and_natural_search": {
+    "live": true,
+    "testsPassed": 13,
+    "specificAgeRegistrySearchVerified": true,
+    "overlapAgeRangeRegistrySearchVerified": true,
+    "realAiSearchVerified": true,
+    "realAiTest": "MS fatigue, United States, phases 2/3, recruiting/not yet recruiting, ages 50\u201375; 11 results and matching filters",
+    "proof": "screenshots/clinical-age-search.png"
   }
 }
