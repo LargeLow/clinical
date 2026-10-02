@@ -30,7 +30,7 @@ test('serves the interface, proxies searches and handles upstream failures',asyn
 
 test('maps business development filters and rejects unsupported values',()=>{
   const p=searchParameters(new URLSearchParams({sponsor:'Biogen',phase:'PHASE3',studyType:'INTERVENTIONAL'}));
-  assert.equal(p.get('query.spons'),'Biogen');assert.equal(p.get('filter.advanced'),'AREA[Phase]PHASE3 AND AREA[StudyType]INTERVENTIONAL');
+  assert.equal(p.get('query.spons'),'Biogen');assert.equal(p.get('filter.advanced'),'AREA[LocationCountry]"United States" AND AREA[Phase]PHASE3 AND AREA[StudyType]INTERVENTIONAL');
   assert.throws(()=>searchParameters(new URLSearchParams({phase:'PHASE99'})));
   assert.throws(()=>searchParameters(new URLSearchParams({studyType:'invalid'})));
 });
@@ -66,7 +66,7 @@ test('multiple status and phase filters use OR within groups and preserve pagina
   const input=new URLSearchParams('status=RECRUITING&status=NOT_YET_RECRUITING&phase=PHASE2&phase=PHASE3&studyType=INTERVENTIONAL&pageToken=next');
   const p=searchParameters(input);
   assert.equal(p.get('filter.overallStatus'),'RECRUITING,NOT_YET_RECRUITING');
-  assert.equal(p.get('filter.advanced'),'(AREA[Phase]PHASE2 OR AREA[Phase]PHASE3) AND AREA[StudyType]INTERVENTIONAL');
+  assert.equal(p.get('filter.advanced'),'AREA[LocationCountry]"United States" AND (AREA[Phase]PHASE2 OR AREA[Phase]PHASE3) AND AREA[StudyType]INTERVENTIONAL');
   assert.equal(p.get('pageToken'),'next');
   const comma=searchParameters(new URLSearchParams({status:'RECRUITING,NOT_YET_RECRUITING,RECRUITING',phase:'PHASE2,PHASE3'}));
   assert.equal(comma.get('filter.overallStatus'),'RECRUITING,NOT_YET_RECRUITING');
@@ -79,7 +79,7 @@ test('streamed assistant preserves registry results when summary fails and emits
   let calls=0;
   const server=createServer(async(url,options)=>{
     if(!url.includes('openai.com'))return Response.json({totalCount:1,studies:[{protocolSection:{identificationModule:{nctId:'NCT00000001',briefTitle:'Registry example'}}}]});
-    const payload=JSON.parse(options.body);assert.equal(payload.model,'gpt-4.1-mini');assert.equal(payload.reasoning,undefined);
+    const payload=JSON.parse(options.body);assert.equal(payload.model,'gpt-5.6-terra');assert.deepEqual(payload.reasoning,{effort:'none'});
     if(++calls>1)return Response.json({error:{code:'rate_limit_exceeded'}},{status:429});
     return Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({reply:'Searching.',profile:null,search:{condition:'MS',treatment:'',location:'',sponsor:'',status:'RECRUITING,NOT_YET_RECRUITING',phase:'PHASE2,PHASE3',studyType:''}})}]}]});
   },env);
@@ -126,5 +126,5 @@ test('assistant translates plain-language age and study-term searches into regis
     query=url;return Response.json({totalCount:1,studies:[{protocolSection:{identificationModule:{nctId:'NCT88888888',briefTitle:'Fatigue study'},eligibilityModule:{minimumAge:'18 Years',maximumAge:'65 Years'}}}]});
   },env);await new Promise(r=>server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+server.address().port;
   const post=(path,body,cookie)=>fetch(base+'/api/assistant/'+path,{method:'POST',headers:{'Content-Type':'application/json','X-Clinical-Request':'1',...(cookie?{Cookie:cookie}:{})},body:JSON.stringify(body)});
-  try{const cookie=(await post('login',{password:env.CLINICAL_ACCESS_PASSWORD})).headers.get('set-cookie').split(';')[0];const r=await post('chat',{message:'Find MS fatigue studies in the US for ages 50–75'},cookie);assert.equal(r.status,200);const data=await r.json();assert.equal(data.query.ageMin,'50');assert.equal(data.data.totalCount,1);const parsed=new URL(query);assert.equal(parsed.searchParams.get('query.term'),'fatigue');assert.match(parsed.searchParams.get('filter.advanced'),/75 years/);}finally{await new Promise(r=>server.close(r));}
+  try{const cookie=(await post('login',{password:env.CLINICAL_ACCESS_PASSWORD})).headers.get('set-cookie').split(';')[0];const r=await post('chat',{message:'Find MS fatigue studies in the US for ages 50–75'},cookie);assert.equal(r.status,200);const data=await r.json();assert.equal(data.query.ageMin,'50');assert.equal(data.query.usOnly,'true');assert.equal(data.data.totalCount,1);const parsed=new URL(query);assert.equal(parsed.searchParams.get('query.term'),'fatigue');assert.match(parsed.searchParams.get('filter.advanced'),/75 years/);}finally{await new Promise(r=>server.close(r));}
 });

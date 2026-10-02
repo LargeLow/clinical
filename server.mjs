@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createAssistant } from './assistant.mjs';
 import { createWorkspace } from './workspace.mjs';
+import { createAttachments } from './attachments.mjs';
 
 const apiBase = 'https://clinicaltrials.gov/api/v2';
 const statuses = new Set(['RECRUITING', 'NOT_YET_RECRUITING', 'ACTIVE_NOT_RECRUITING', 'COMPLETED', 'ENROLLING_BY_INVITATION', 'TERMINATED', 'WITHDRAWN', 'SUSPENDED', 'UNKNOWN']);
@@ -23,6 +24,8 @@ export function searchParameters(input) {
     params.set('filter.overallStatus', selectedStatuses.join(','));
   }
   const filters=[];
+  const usOnly=input.get('usOnly')!=='false';
+  if(usOnly)filters.push('AREA[LocationCountry]"United States"');
   const phases=values('phase');
   if(phases.length) {if(phases.some(v=>!['EARLY_PHASE1','PHASE1','PHASE2','PHASE3','PHASE4','NA'].includes(v))) throw new Error('Choose valid study phases.');filters.push(phases.length===1?'AREA[Phase]'+phases[0]:'('+phases.map(v=>'AREA[Phase]'+v).join(' OR ')+')');}
   const type=input.get('studyType');
@@ -39,7 +42,7 @@ export function searchParameters(input) {
     filters.push('(AREA[MinimumAge]RANGE[MIN,MAX] OR AREA[MaximumAge]RANGE[MIN,MAX])');
   }
   if(filters.length) params.set('filter.advanced',filters.join(' AND '));
-  if (!['query.term','query.cond','query.intr','query.locn','query.spons','filter.overallStatus','filter.advanced'].some(key => params.has(key))) throw new Error('Enter a condition, sponsor, treatment, location, or study filter.');
+  if (filters.length===(usOnly?1:0) && !['query.term','query.cond','query.intr','query.locn','query.spons','filter.overallStatus'].some(key => params.has(key))) throw new Error('Enter a condition, sponsor, treatment, location, or study filter.');
   const token = input.get('pageToken');
   if (token) {
     if (token.length > 10000) throw new Error('Invalid page token.');
@@ -67,8 +70,10 @@ async function upstream(path, fetcher) {
 
 export function createServer(fetcher = fetch, env = process.env) {
   const assistant=createAssistant({fetcher,env,getStudy:async id=>upstream('/studies/'+id,fetcher),search:async input=>upstream('/studies?'+searchParameters(input),fetcher)});
+  const attachments=createAttachments({env,authenticated:assistant.authenticated});
+  assistant.setAttachments(attachments);
   const workspace=createWorkspace({env,fetcher,authenticated:assistant.authenticated});
-  return http.createServer(async (req,res) => {
+  const server=http.createServer(async (req,res) => {
     res.setHeader('X-Content-Type-Options','nosniff');
     res.setHeader('Referrer-Policy','no-referrer');
     res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
@@ -78,6 +83,7 @@ export function createServer(fetcher = fetch, env = process.env) {
     };
     try {
       const url = new URL(req.url,'http://localhost');
+      if(await attachments.handle(req,res,url,json)) return;
       if(await assistant(req,res,url,json)) return;
       if(await workspace(req,res,url,json)) return;
       if (req.method !== 'GET') return json(405,{error:'Method not allowed.'});
@@ -100,6 +106,7 @@ export function createServer(fetcher = fetch, env = process.env) {
       json(error.status || 502,{error:error.status ? error.message : 'The study service did not respond. Please try again shortly.'});
     }
   });
+  server.on('close',attachments.close);return server;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
